@@ -1,0 +1,73 @@
+[server]
+host: 0.0.0.0
+port: 7125
+klippy_uds_address: /tmp/klippy_uds
+config_path: /home/pi/klipper_config
+#   The maximum size allowed for a file upload.  Default is 1024 MiB.
+max_upload_size: 1024
+#   When set to True Moonraker will log in verbose mode.  During this stage
+#   of development the default is True.  In the future this will change.
+enable_debug_logging: False
+#   The path to the folder that stores Moonraker's lmdb database files.
+#   It is NOT recommended to place this file in a location that is served by
+#   Moonraker (such as the "config_path" or the location where gcode
+#   files are stored).  If the folder does not exist an attempt will be made
+#   to create it.  The default is ~/.moonraker_database.
+database_path: ~/.moonraker_database
+#   An optional path to a directory where log files are located.  Users may
+#   configure various applications to store logs here and Moonraker will serve
+#   them at "/server/files/logs/*".  The default is no log paths.
+log_path: /home/pi/klipper_logs
+#   The maximum number of temperature values to store for each sensor. Note
+#   that this value also applies to the "target", "power", and "fan_speed"
+#   if the sensor reports them.  The default is 1200, which is enough to
+#   store approximately 20 minutes of data at one value per second.
+temperature_store_size: 1200
+#   The maximum number "gcode lines" to store.  The default is 1000.
+gcode_store_size:  1000
+
+[authorization]
+cors_domains:
+  *.local
+  *://my.mai
+trusted_clients:
+  127.0.0.1
+
+[octoprint_compat]
+
+[history]
+
+[update_manager]
+enable_repo_debug: False
+distro: debian
+enable_auto_refresh: True
+
+[update_manager client mainsail]
+type: web
+repo: meteyou/mainsail
+path: /home/pi/mainsail
+persistent_files: config.json
+
+[update_manager client KlipperScreen]
+type: git_repo
+path: /home/pi/KlipperScreen
+env: /home/pi/.KlipperScreen-env/bin/python
+origin: https://github.com/jordanruthe/KlipperScreen.git
+requirements: scripts/KlipperScreen-requirements.txt
+venv_args: -p python3
+install_script: scripts/KlipperScreen-install.sh
+
+[update_manager client kiauh]
+type: git_repo
+path: /home/pi/kiauh
+origin: https://github.com/th33xitus/kiauh.git
+
+[power psu]
+type: gpio
+pin: !gpio17
+initial_state: on
+#off_when_shutdown: True
+locked_while_printing: True
+restart_klipper_when_powered: True
+restart_delay: 2
+

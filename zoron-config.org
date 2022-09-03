@@ -1,0 +1,517 @@
+# -*- mode: org -*-
+#+STARTUP: showall
+#+TITLE: Zoron 300 Klipper Config
+#+PROPERTY: header-args :tangle printer.cfg
+
+* General Reference
+Section outlining tasks not related to configuration.
+** Building and Flashing Klipper Firmware
+  cd /home/pi/klipper
+  make menuconfig
+
+  - STM32
+  - STM32F446
+  - No Bootloader
+  - 12mz Crystal
+  - USB PA11/PA12
+
+  make
+
+  boot in dfu  (power off board, turn on dfu, power on)
+
+  dfu-util -R -a 0 -s 0x08000000:leave -D out/firmware.bin
+
+  turn off dfu
+
+** Slicer Settings
+*** Cura
+    PRINT_START BED_TEMP={material_bed_temperature_layer_0} EXTRUDER_TEMP={material_print_temperature_layer_0} CHAMBER_TEMP={build_volume_temperature}  LAYER_HEIGHT=0.3
+
+    PRINT_END
+    
+* Config Header
+  #+BEGIN_SRC jinja2
+  ## Voron Design VORON2 300mm Fysetc Spider TMC2209 UART config
+  ## Generated from zoron-config.org
+  #+END_SRC
+* MCU Definition
+** Spider Board
+    #+BEGIN_SRC jinja2
+    [mcu]
+    serial: /dev/serial/by-id/usb-Klipper_stm32f446xx_42001E001850563046363120-if00
+    restart_method: command
+    #+END_SRC
+
+** Raspberry Pi
+    #+BEGIN_SRC jinja2
+    [mcu rpi]
+    serial: /tmp/klipper_host_mcu
+    #+END_SRC 
+* Printer Definition and General Config
+  Printer Kinematics and Speeds
+  #+BEGIN_SRC jinja2
+  [printer]
+  kinematics: corexy
+  max_velocity: 500
+  max_accel: 9000
+  max_accel_to_decel: 4000
+  max_z_velocity: 50
+  max_z_accel: 500
+  square_corner_velocity: 5.0
+#+END_SRC
+
+* Stepper Motors and Heaters
+** Steppers X/Y
+*** Stepper X - MCU - X-MOT - B Stepper - Left
+#+BEGIN_SRC jinja2
+[stepper_x]
+step_pin: PE11
+dir_pin: !PE10
+enable_pin: !PE9
+full_steps_per_rotation: 400
+microsteps: 32
+rotation_distance: 40
+endstop_pin: ^PA1
+position_min: 0
+position_endstop: 300
+position_max: 300
+homing_speed: 100
+homing_retract_dist: 2
+second_homing_speed: 5
+homing_positive_dir: true
+#+END_SRC
+**** Driver - X - TMC 2209
+#+BEGIN_SRC jinja2
+[tmc2209 stepper_x]
+uart_pin: PE7
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 2
+driver_TOFF: 3
+driver_HEND: 3
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 9
+#+END_SRC
+
+*** Stepper Y - MCU - Y-MOT - A Stepper - Right
+160 steps per mm -> 0.00625 mm per step 
+
+## 0.9 Stepper Motor
+full_steps_per_rotation: 400
+microsteps: 32
+
+##  1.8 Stepper Motor
+full_steps_per_rotation: 200
+microsteps: 16
+
+#+BEGIN_SRC jinja2
+    [stepper_x]
+    step_pin: PE11
+    dir_pin: !PE10
+    enable_pin: !PE9
+    full_steps_per_rotation: 400
+    microsteps: 32
+    rotation_distance: 40
+  endstop_pin: ^PA1
+  position_min: 0
+  position_endstop: 300
+  position_max: 300
+  homing_speed: 100
+  homing_retract_dist: 2
+  second_homing_speed: 5
+  homing_positive_dir: true
+#+END_SRC
+
+**** Driver - Y - TMC 2209
+#+BEGIN_SRC jinja2
+    [tmc2209 stepper_x]
+  uart_pin: PE7
+  interpolate: true
+  run_current: 1.2
+  hold_current: 0.8
+  sense_resistor: 0.110
+  stealthchop_threshold: 0
+  driver_TBL: 2
+  driver_TOFF: 3
+  driver_HEND: 3
+  driver_HSTRT: 0
+  driver_PWM_GRAD: 8
+  driver_PWM_LIM: 9
+
+#+END_SRC
+
+*** readme
+160 steps per mm -> 0.00625 mm per step 
+
+## 0.9 Stepper Motor
+full_steps_per_rotation: 400
+microsteps: 32
+
+##  1.8 Stepper Motor
+full_steps_per_rotation: 200
+microsteps: 16
+
+** Steppers Z
+*** MAIN - Stepper Z0 - MCU - Z-MOT - Z0 Stepper - Front Left
+#+BEGIN_SRC jinja2
+[stepper_z]
+step_pin: PD14
+dir_pin: !PD13
+enable_pin: !PD15
+full_steps_per_rotation: 200
+microsteps: 16
+gear_ratio: 80:16
+rotation_distance: 40
+endstop_pin: ^PA0
+position_endstop: 0
+position_max: 275
+position_min: -2
+homing_speed: 15.0
+second_homing_speed: 3.0
+homing_retract_dist: 2.0
+#+END_SRC
+
+**** Driver - Z0 - TMC 2209
+#+BEGIN_SRC jinja2
+  [tmc2209 stepper_z]
+  uart_pin: PD10
+  interpolate: true
+  run_current: 1.2
+  hold_current: 0.8
+  sense_resistor: 0.110
+  stealthchop_threshold: 0
+  driver_TBL: 0
+  driver_TOFF: 7
+  driver_HEND: 2
+  driver_HSTRT: 0
+  driver_PWM_GRAD: 8
+  driver_PWM_LIM: 10
+#+END_SRC
+
+*** Stepper Z1 - MCU - E1-MOT - Z1 Stepper - Rear Left
+#+BEGIN_SRC jinja2
+[stepper_z1]
+step_pin: PE6
+dir_pin: PC13
+enable_pin: !PE5
+full_steps_per_rotation: 200
+microsteps: 16
+gear_ratio: 80:16
+rotation_distance: 40
+#+END_SRC
+
+**** Driver - Z1 - TMC 2209
+#+BEGIN_SRC jinja2
+[tmc2209 stepper_z1]
+uart_pin: PC14
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 0
+driver_TOFF: 7
+driver_HEND: 2
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 10
+#+END_SRC
+
+*** Stepper Z2 - MCU - E2-MOT - Z2 Stepper - Rear Right
+#+BEGIN_SRC jinja2
+[stepper_z2]
+step_pin: PE2
+dir_pin: PE2
+enable_pin: !PE4
+full_steps_per_rotation: 200
+microsteps: 16
+gear_ratio: 80:16
+rotation_distance: 40
+#+END_SRC
+
+**** Driver - Z2 - TMC 2209
+#+BEGIN_SRC jinja2
+[tmc2209 stepper_z2]
+uart_pin: PC15
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 0
+driver_TOFF: 7
+driver_HEND: 2
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 10
+#+END_SRC
+
+*** Stepper Z3 - MCU - E3-MOT - Z3 Stepper - Front Right
+#+BEGIN_SRC jinja2
+[stepper_z3]
+step_pin: PD12
+dir_pin: PC4
+enable_pin: !PE8
+full_steps_per_rotation: 200
+microsteps: 16
+gear_ratio: 80:16
+rotation_distance: 40
+#+END_SRC
+
+**** Driver - Z3 - TMC 2209
+#+BEGIN_SRC jinja2
+[tmc2209 stepper_z3]
+uart_pin: PA15
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 0
+driver_TOFF: 7
+driver_HEND: 2
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 10
+#+END_SRC
+
+*** readme
+##  800 steps per mm -> 0.00125 mm per step
+
+##  0.9 Stepper Motor
+full_steps_per_rotation: 400
+microsteps: 32
+
+##  1.8 Stepper
+full_steps_per_rotation: 200
+microsteps: 16
+
+** Steppers E
+*** Stepper Extruder - MCU - E-MOT - E0 - TH0
+#+BEGIN_SRC jinja2
+[extruder]
+step_pin: PD5
+dir_pin: !PD6
+enable_pin: !PD4
+rotation_distance: 7.674
+microsteps: 16
+full_steps_per_rotation: 200
+nozzle_diameter: 0.400
+filament_diameter: 1.75
+heater_pin: PB15
+sensor_type: PT1000
+sensor_pin: PC0
+min_temp: 10
+max_temp: 300
+max_power: 1.0
+min_extrude_temp: 170
+control = pid
+pid_kp = 23.166
+pid_ki = 1.170
+pid_kd = 114.671
+pressure_advance: 0.05
+pressure_advance_smooth_time: 0.040
+max_extrude_cross_section: 50 
+max_extrude_only_distance: 500
+#+END_SRC
+
+**** Driver - E0 - TMC 2209
+#+BEGIN_SRC jinja2
+[tmc2209 extruder]
+uart_pin: PD7
+interpolate: false
+run_current: 0.45
+hold_current: 0.3
+sense_resistor: 0.110
+stealthchop_threshold: 0
+#+END_SRC
+
+*** readme
+##################### Standard Values #####################
+##  BMG spec of extruder pully
+##  rotation_distence: 22.68 BMG 5mm axis
+##  rotation_distence: 33.00 BMG 8 mm axis
+##  gear ratios of different Extruders
+##  gear_ratio: 50:10  Voron V0.1 DD
+##  gear_ratio: 50:17  Voron Afterburner Clockworks
+##  gear_ratio: 80:20  Voron M4
+##  gear_ratio: 7.5:1  Voron Afterburner Galileo
+############### Different Clockworks Setups ###############
+##  Afterburner: Stepper Motor 0.9 step distance 0.00120 calibrated 0.001196
+##  dir_pin: P0.11
+##  full_steps_per_rotation: 400
+##  microsteps: 16
+##  rotation_distance: 7.6544
+############################################################
+##  Galileo: Stepper Motor 1.8 step distance 0.00138 calibrated 0,001375
+##  dir_pin: !P0.11
+##  full_steps_per_rotation: 200
+##  microsteps: 16
+##  rotation_distance: 4.401
+############### Different Clockworks Setups ###############
+##	Update value below when you perform extruder calibration
+##	Higher value means less filament extruded
+##	If you ask for 100mm of filament, but in reality it is 98mm:
+##	step_distance = 98 / 100 * step_distance_old
+############################################################
+
+
+##  Try to keep pressure_advance below 1.0
+
+##  Default is 0.040, leave stock
+
+** Heater Bed
+*** SSR - MCU - TB - Fan0
+#+BEGIN_SRC jinja2
+[heater_bed]
+heater_pin: PB4
+sensor_type: Generic 3950
+sensor_pin: PC3
+max_power: 0.65
+min_temp: 10
+max_temp: 130
+control: pid
+pid_kp: 39.533
+pid_ki: 1.030
+pid_kd: 379.708
+#+END_SRC
+
+
+
+* Probe and QGL
+** Probe
+#+BEGIN_SRC jinja2
+[probe]
+pin: ^PA3
+x_offset: 0
+y_offset: 19.75
+z_offset: 6.42
+speed: 7.5
+lift_speed: 30.0
+samples: 3
+samples_result: median
+sample_retract_dist: 0.8
+samples_tolerance: 0.01
+samples_tolerance_retries: 3
+#+END_SRC
+*** readme
+############### Different Probe Settings ###############
+##  Omron: 
+##  speed: 10.0
+##  lift_speed: 30.0
+##  samples: 9
+##  samples_result: median
+##  sample_retract_dist: 0.5
+##  samples_tolerance: 0.006
+##  samples_tolerance_retries: 10
+##  y_offset: 25.00
+########################################################
+##  Super Pinda:
+##  speed: 7.5
+##  lift_speed: 30.0
+##  samples: 6
+##  samples_result: median
+##  sample_retract_dist: 0.8
+##  samples_tolerance: 0.005
+##  samples_tolerance_retries: 10
+##  y_offset: 25.00
+########################################################
+##  MagProbe Klicky
+##  speed: 7.5
+##  lift_speed: 30.0
+##  sample: 4
+##  samples_result: median
+##  sample_retract_dist: 0.8
+##  samples_tolerance: 0.005
+##  samples_tolerance_retries: 10
+##  y_offset: 19.75
+##  z_offset: 6.42 ;not needed since a Endstop is used
+############### Different Probe Settings ##############
+** QGL
+#+BEGIN_SRC
+[quad_gantry_level]
+gantry_corners:
+	-60,-10
+	360,370
+points:
+	50,25
+	50,225
+	250,225
+	250,25
+	
+speed: 200
+horizontal_move_z: 15
+retries: 20
+retry_tolerance: 0.0075
+max_adjust: 15
+#+END_SRC
+
+*** Macro
+**** Quad Gantry Level
+#+BEGIN_SRC jinja2
+[gcode_macro QUAD_GANTRY_LEVEL]
+description: Conform a moving, twistable gantry to the shape of a stationary bed
+rename_existing: QUAD_GANTRY_LEVEL_BASE
+gcode:
+  #####  get user defines  #####
+  {% set park_pos = printer['gcode_macro _USER_VARIABLE'].park_bed %}
+  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
+  #####  get hardware enables  #####
+  {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
+  ##### get toolhead position #####
+  {% set act_z = printer.toolhead.position.z|float %}
+  #####  set default  #####
+  {% set park = params.PARK|default('true') %}
+  #####  end of definitions  #####
+  SAVE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
+  _SET_Z_CURRENT VAL=HOME
+  {% if "xyz" not in printer.toolhead.homed_axes %}
+    G28
+  {% endif %}
+  {% if ena_mag_probe == 'true' %}
+    {% if act_z < z_hop %}
+      G1 Z{z_hop} F900 ; move head up to insure Probe is not triggered in error case
+    {% endif %}
+    ATTACH_PROBE 
+  {% endif %}
+  QUAD_GANTRY_LEVEL_BASE
+  {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
+  G28 Z
+  _SET_Z_CURRENT
+  {% if park|lower == 'true' %}
+    G90
+    G0 Z{park_pos[2]} F1800           ; move nozzle to z high first
+    G0 X{park_pos[0]} Y{park_pos[1]} F18000 ; home to get toolhead in the middle
+  {% endif %}
+  RESTORE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
+ #+END_SRC
+**** Check QGL
+#+BEGIN_SRC jinja2
+[gcode_macro CHECK_QGL]
+description: Run after QUAD_GANTRY_LEVEL to insure it passes
+gcode:
+  #####  Get user defines  #####
+  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
+  #####  Get hardware enables  #####
+  {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
+  #####  end of definitions  #####
+  # check that after QGL and cancle print in case of failuare
+  {% if printer.quad_gantry_level.applied|lower == 'false' %}
+    {action_respond_info("QGL CHECK: Fail therefore cancel the print")}
+    G90
+    G0 Z{z_hop} F900           ; move nozzle to z high first
+    {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
+    PAUSE_BASE
+    UPDATE_DELAYED_GCODE ID=_EXECUTE_CANCEL_PRINT DURATION=1
+  {% else %}
+    {action_respond_info("QGL CHECK: Pass")}
+  {% endif %}
+#+END_SRC
+
+*** readme
+##  Probe points are nozzle positions, we need to substract the probe offset
+
