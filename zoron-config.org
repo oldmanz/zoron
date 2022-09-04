@@ -30,26 +30,26 @@ Section outlining tasks not related to configuration.
     PRINT_END
     
 * Config Header
-  #+BEGIN_SRC jinja2
+  #+BEGIN_SRC conf
   ## Voron Design VORON2 300mm Fysetc Spider TMC2209 UART config
   ## Generated from zoron-config.org
   #+END_SRC
 * MCU Definition
 ** Spider Board
-    #+BEGIN_SRC jinja2
+    #+BEGIN_SRC conf
     [mcu]
     serial: /dev/serial/by-id/usb-Klipper_stm32f446xx_42001E001850563046363120-if00
     restart_method: command
     #+END_SRC
 
 ** Raspberry Pi
-    #+BEGIN_SRC jinja2
+    #+BEGIN_SRC conf
     [mcu rpi]
     serial: /tmp/klipper_host_mcu
     #+END_SRC 
 * Printer Definition and General Config
   Printer Kinematics and Speeds
-  #+BEGIN_SRC jinja2
+  #+BEGIN_SRC conf
   [printer]
   kinematics: corexy
   max_velocity: 500
@@ -63,7 +63,7 @@ Section outlining tasks not related to configuration.
 * Stepper Motors and Heaters
 ** Steppers X/Y
 *** Stepper X - MCU - X-MOT - B Stepper - Left
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [stepper_x]
 step_pin: PE11
 dir_pin: !PE10
@@ -81,7 +81,7 @@ second_homing_speed: 5
 homing_positive_dir: true
 #+END_SRC
 **** Driver - X - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [tmc2209 stepper_x]
 uart_pin: PE7
 interpolate: true
@@ -108,7 +108,7 @@ microsteps: 32
 full_steps_per_rotation: 200
 microsteps: 16
 
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
     [stepper_x]
     step_pin: PE11
     dir_pin: !PE10
@@ -127,7 +127,7 @@ microsteps: 16
 #+END_SRC
 
 **** Driver - Y - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
     [tmc2209 stepper_x]
   uart_pin: PE7
   interpolate: true
@@ -330,6 +330,14 @@ sense_resistor: 0.110
 stealthchop_threshold: 0
 #+END_SRC
 
+*** Extruder Heater Verfiy
+#+BEGIN_SRC conf
+[verify_heater extruder]
+max_error: 120
+check_gain_time: 20
+hysteresis: 5
+heating_gain: 2
+#+END_SRC
 *** readme
 ##################### Standard Values #####################
 ##  BMG spec of extruder pully
@@ -380,11 +388,17 @@ pid_ki: 1.030
 pid_kd: 379.708
 #+END_SRC
 
-
-
+*** Bed Heater Verfiy
+#+BEGIN_SRC conf
+[verify_heater heater_bed]
+max_error: 120
+check_gain_time: 60
+hysteresis: 5
+heating_gain: 2
+#+END_SRC
 * Probe and QGL
 ** Probe
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [probe]
 pin: ^PA3
 x_offset: 0
@@ -432,7 +446,7 @@ samples_tolerance_retries: 3
 ##  z_offset: 6.42 ;not needed since a Endstop is used
 ############### Different Probe Settings ##############
 ** QGL
-#+BEGIN_SRC
+#+BEGIN_SRC conf
 [quad_gantry_level]
 gantry_corners:
 	-60,-10
@@ -515,3 +529,1312 @@ gcode:
 *** readme
 ##  Probe points are nozzle positions, we need to substract the probe offset
 
+* Homing
+** Homing Override
+#+BEGIN_SRC jinja2
+[homing_override]
+axes: z
+set_position_z: 0
+gcode:
+  ##### get user defines #####
+  # use -10 as default to insure it error in case the variable is not existing
+  {% set z_endstop = printer['gcode_macro _USER_VARIABLE'].z_endstop|default([-10,-10]) %}
+  {% set z_endstop_hop = printer['gcode_macro _USER_VARIABLE'].z_endstop_hop %}
+  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop %}
+  ##### end of definitions #####
+  SAVE_GCODE_STATE NAME=STATE_HOMING
+  G91                      ; set relative
+  G0 Z{z_endstop_hop} F900 ; lift nozzle
+  G90                      ; set absolute
+  ## reduce current of Z motors
+  _SET_ACC VAL=HOME
+  _SET_Z_CURRENT VAL=HOME
+  # Home X and Y only for G28 or G28 XYZ
+  {% if 'Z' in params|upper %}
+    {% if "x" not in printer.toolhead.homed_axes %}
+      G28 X
+    {% endif %}
+    {% if "y" not in printer.toolhead.homed_axes %}
+      G28 Y
+    {% endif %}
+  {% else %}
+    G28 X Y
+  {% endif %}      
+  ##	XY Location of the Z Endstop Switch
+  G0 X{z_endstop[0]} Y{z_endstop[1]} F7200 
+  # Home Z
+  G28 Z
+  ## move nozzle from pin
+  G0 Z2 F300
+  ## return to org current settings
+  _SET_Z_CURRENT
+  _SET_ACC
+  # Lift Z
+  G0 Z{z_hop} F1800
+  RESTORE_GCODE_STATE NAME=STATE_HOMING
+#+END_SRC
+
+** Conditional Homing
+#+BEGIN_SRC jinja2
+[gcode_macro _CG28]
+description: Helper: Conditional homing
+gcode:
+  {% if "xyz" not in printer.toolhead.homed_axes %}
+    G28
+  {% endif %}
+#+END_SRC
+
+** Set Z Current
+#+BEGIN_SRC jinja2
+[gcode_macro _SET_Z_CURRENT]
+description: Helper: Set Z-drive motor current
+variable_last_val: 'CONFIG'
+gcode:
+  ###### set default values #####
+  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_z_current|int %}
+  {% set val = params.VAL|default('CONFIG') %}
+  {% set respond = params.RESPOND|default(default_respond)|int %}
+  {% if val == 'HOME' %}
+    {% set z_run  = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
+    {% set z_hold = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
+  {% else %}
+    {% if 'tmc2209 stepper_z' in printer.configfile.settings %}
+      {% set z_run  = printer.configfile.settings['tmc2209 stepper_z'].run_current %}
+      {% set z_hold = printer.configfile.settings['tmc2209 stepper_z'].hold_current %}
+    {% elif 'tmc5160 stepper_z' in printer.configfile.settings %}
+      {% set z_run  = printer.configfile.settings['tmc5160 stepper_z'].run_current %}
+      {% set z_hold = printer.configfile.settings['tmc5160 stepper_z'].hold_current %}
+    {% endif %}
+  {% endif %}
+  ##### end of definition #####
+  {% if val != last_val %}
+    SET_GCODE_VARIABLE MACRO=_SET_Z_CURRENT VARIABLE=last_val VALUE='"{val}"'
+    {% if respond == 1 %}
+      {action_respond_info("Home&Probe: RunCur %.2fA rms HoldCur %.2fA rms" % (z_run|float, z_hold|float))}
+    {% endif %}
+    SET_TMC_CURRENT STEPPER=stepper_z  CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z1 CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z2 CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z3 CURRENT={z_run} HOLDCURRENT={z_hold}
+    M400
+  {% endif %}
+#+END_SRC
+
+** Set Acceleration
+#+BEGIN_SRC jinja2
+[gcode_macro _SET_ACC]
+description: Helper: Set accel and accel_to_decel value
+variable_last_val: 'CONFIG'
+gcode:
+  ##### set default value #####
+  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_acc|int %}
+  {% set val = params.VAL|default('CONFIG') %}
+  {% set respond = params.RESPOND|default(default_respond)|int %}
+  {% if val == 'HOME' %}
+    {% set accel = printer['gcode_macro _USER_VARIABLE'].home_accel %}
+    {% set accel_to_decel = printer['gcode_macro _USER_VARIABLE'].home_accel|int / 2 %}
+  {% else %}
+    {% set accel = printer.configfile.settings.printer.max_accel %}
+    {% set accel_to_decel = printer.configfile.settings.printer.max_accel_to_decel %}
+  {% endif %}
+  ##### end of definition #####
+  {% if val != last_val %}
+    SET_GCODE_VARIABLE MACRO=_SET_ACC VARIABLE=last_val VALUE='"{val}"'
+    {% if respond == 1 %}
+      {action_respond_info("VELOCITY_LIMIT set ACCEL: %d ACCEL_TO_DECEL: %d" % (accel|int, accel_to_decel|int))}
+    {% endif %}
+    SET_VELOCITY_LIMIT ACCEL={accel} ACCEL_TO_DECEL={accel_to_decel}
+  {% endif %}
+#+END_SRC
+* Bed Mesh
+#+BEGIN_SRC conf
+[bed_mesh]
+mesh_min: 40,40
+mesh_max: 260,260
+speed: 1000
+horizontal_move_z: 7.5
+probe_count: 9,9
+algorithm: bicubic
+relative_reference_index: 40
+move_check_distance: 3
+split_delta_z: 0.0125
+mesh_pps: 2,2
+#+END_SRC
+
+** Macros
+*** Bed Mesh Calibrate
+#+BEGIN_SRC jinja2
+[gcode_macro BED_MESH_CALIBRATE]
+description: Perform QGL and bed mesh leveling
+rename_existing: BED_MESH_CALIBRATE_BASE
+gcode:
+  #####  get hardware enables  #####
+  {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
+  ##### get params and prepare to send them to the base macro #####
+  {% set get_params = [] %}
+  {% for key in params %}
+    {% set get_params = get_params.append(key + "=" + params[key])  %}
+  {% endfor %}
+  ##### end of definitions #####
+  _CG28
+  BED_MESH_CLEAR
+  ## check if QGL was already executed
+  {% if printer.quad_gantry_level.applied|lower == 'false' %}
+    QUAD_GANTRY_LEVEL PARK=false
+  {% endif %}
+  {% if ena_mag_probe == 'true' %} ATTACH_PROBE {% endif %}
+  BED_MESH_CALIBRATE_BASE {get_params|join(" ")}
+  {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
+#+END_SRC
+
+*** BED Mesh Store
+#+BEGIN_SRC jinja2
+[gcode_macro BED_MESH_STORE]
+description: Generate a mesh, name it and run save_config if requested
+variable_save_at_end: 'false' 
+gcode:
+  ##### set default parameter value #####
+  {% set save = params.SAVE|default('true') %}
+  {% set park = params.PARK|default('true') %}
+  #############  Get user defines  #############
+  {% set center_x = printer["gcode_macro _USER_VARIABLE"].center_x %}
+  {% set center_y = printer["gcode_macro _USER_VARIABLE"].center_y %}
+  {% set z_min_delta = printer["gcode_macro _USER_VARIABLE"].z_min_delta %}
+  {% set z_hop = printer["gcode_macro _USER_VARIABLE"].z_hop %}
+  {% set bed_temp = printer.heater_bed.target|int %}
+  ##### define plate name: Voron (default) or flexplate name #####
+  {% set plate_name = 'Voron' %}
+  {% if 'save_variables' in printer.configfile.config %}
+    {% if printer.save_variables.variables.plate_array is defined %}
+      {% set plate_index = printer.save_variables.variables.plate_index|int %}
+      {% set plate_name = printer.save_variables.variables.plate_array[plate_index][0] %}
+    {% endif %}
+  {% endif %}
+  ##### join everything to a single mesh name #####
+  {% set mesh_name = plate_name + "-Bed_Temp-" + bed_temp|string + "C" %}
+  ##### end of definitions #####
+  BED_MESH_CALIBRATE
+  BED_MESH_PROFILE SAVE={mesh_name}
+  BED_MESH_PROFILE REMOVE=default
+  {% if park|lower == 'true' %}
+    G90                                ; set absolute
+    G0 Z{z_min_delta} F1800            ; move nozzle to z high first
+    G0 X{center_x} Y{center_x} F18000  ; home to get toolhead in the middle
+  {% endif %}
+  {% if save|lower == 'true' %}
+    _PRINT_AR T="BED_MESH: Save Config!"
+    SAVE_CONFIG
+  {% else %}
+    _PRINT_AR T="BED_MESH: Save Config after print done"
+    SET_GCODE_VARIABLE MACRO=BED_MESH_STORE VARIABLE=save_at_end VALUE='"true"'
+  {% endif %}
+#+END_SRC
+
+*** Bed Mesh Load
+#+BEGIN_SRC jinja2
+[gcode_macro BED_MESH_LOAD]
+description: Load an existing mesh or generate a new one
+gcode:
+  ##### set default parameter value #####
+  {% set auto = params.AUTO|default('false') %}
+  {% set bed_temp = printer.heater_bed.target|int %}
+  ##### define plate name: Voron (default) or flexplate name #####
+  {% set plate_name = 'Voron' %}
+  {% if 'save_variables' in printer.configfile.config %}
+    {% if printer.save_variables.variables.plate_array is defined %}
+      {% set plate_index = printer.save_variables.variables.plate_index|int %}
+      {% set plate_name = printer.save_variables.variables.plate_array[plate_index][0] %}
+    {% endif %}
+  {% endif %}
+  ##### join everything to a single mesh name #####
+  {% set mesh_name = plate_name + "-Bed_Temp-" + bed_temp|string + "C" %}
+  ##### end of definitions #####
+  {% if printer.configfile.config["bed_mesh " + mesh_name] is defined %}
+    BED_MESH_CLEAR
+    BED_MESH_PROFILE LOAD={mesh_name}
+    _PRINT_AR T="{"BED_MESH: " + mesh_name + " loaded"}"
+  {% else %}
+    {% if auto|lower == 'true' %}
+      _PRINT_AR T="{"BED_MESH: " + mesh_name + " needs to be generated"}"
+      BED_MESH_STORE SAVE=false PARK=false
+    {% else %}
+      _PRINT_AR T="{"BED_MESH ERROR: " + mesh_name + " not defined"}"
+    {% endif %}
+  {% endif %}
+#+END_SRC
+
+*** Bed Mesh Save
+#+BEGIN_SRC jinja2
+[delayed_gcode _BED_MESH_SAVE]
+gcode:
+  {% if printer["gcode_macro MESH_STORE"].save_at_end == 'true'  %}
+    _PRINT_AR T="BED_MESH: Save Config!"
+    SAVE_CONFIG
+  {% endif %}
+#+END_SRC
+* Fans
+** Hotend Fan - E1 Connector 
+#+BEGIN_SRC conf
+[heater_fan hotend_fan]
+pin: PB0
+max_power: 1.0
+kick_start_time: 0.5
+heater: extruder
+heater_temp: 50.0
+#+END_SRC
+
+** Print Cooling Fan - Fan0 Connector
+#+BEGIN_SRC conf
+[fan]
+pin: PB1
+kick_start_time: 0.5
+off_below: 0.10
+#+END_SRC
+
+** Controller Board Fan - NeoPixel Connector 5V
+#+BEGIN_SRC conf
+[heater_fan controller_fan]
+pin: PC8
+max_power: 1.0
+kick_start_time: 0.5
+heater: heater_bed
+heater_temp: 45.0
+#+END_SRC
+** Chamber Fan - NeoPixel Connector 24V
+#+BEGIN_SRC conf
+[thermistor chamber_temp]
+temperature1: 25
+resistance1: 10000
+beta: 3950
+
+[temperature_fan chamber]
+pin: PB2
+max_power: 1.0
+shutdown_speed: 0.0
+cycle_time: 0.0005     #2 kHz PWM signal
+hardware_pwm: False
+sensor_type: chamber_temp
+sensor_pin: PC1
+min_temp: 0
+max_temp: 100
+target_temp: 0
+max_speed: 1.0
+min_speed: 0
+control: pid
+pid_Kp: 2.0     ;40
+pid_Ki: 5.0     ;0.2
+pid_Kd: 0.5     ;0.1
+pid_deriv_time: 2.0
+gcode_id: C
+#+END_SRC
+
+*** Macros
+Set Chamber Fan Speed
+#+BEGIN_SRC jinja2
+[gcode_macro M141]
+description: Set temperature of chamber fan
+gcode:
+  # set default parameter value
+  {% set temp = params.S|default(0) %}
+  SET_TEMPERATURE_FAN_TARGET temperature_fan=chamber target={temp}
+#+END_SRC
+
+Chamber Ventilation Control in Mainsail
+#+BEGIN_SRC jinja2
+[gcode_macro VENT]
+description: Toggle Chamber fan
+gcode:
+    {% set act_target = printer['temperature_fan chamber'].target|int %}
+    {% set temp_on = printer['gcode_macro _USER_VARIABLE'].vent_on|int %}
+    {% if act_target > 0 and act_target <= temp_on %}
+        M141
+    {% else %}
+        M141 S{temp_on}
+    {% endif %}
+    _VENT_INFO
+
+[delayed_gcode _DELAY_VENT_OFF]
+gcode:
+  {% if (printer.idle_timeout.state|lower != "printing") %}
+    M141
+    _VENT_INFO
+  {% endif %}
+
+[gcode_macro _VENT_INFO]
+description: Helper: Print chamber fan temperature
+gcode:
+  {% if printer['temperature_fan chamber'].target|int == 0 %}
+    {action_respond_info("Chamber fan off")}
+  {% else %}
+    {action_respond_info("Chamber fan target temp: %2dC" % (printer['temperature_fan chamber'].target))}
+  {% endif %}
+
+#+END_SRC
+
+** Nevermore - Off Right Now
+#+BEGIN_SRC conf
+##  Nevermore Micro filter
+##  - Z board, E1 Connector
+
+# [fan_generic filter]
+# pin: z:P2.4
+# kick_start_time: 0.5
+# off_below: 0.10
+
+# [temperature_sensor RPi]
+# sensor_type: temperature_host
+# min_temp: 10
+# max_temp: 100
+# gcode_id: PI
+
+# ##  Z board, TH1 Connector
+# [temperature_sensor endstop]
+# sensor_type: NTC 100K beta 3950
+# sensor_pin: z:P0.23
+# min_temp: 10
+# max_temp: 100
+# gcode_id: E
+#+END_SRC
+
+*** Macros
+Commented Out Right Now
+
+##+BEGIN_SRC jinja2
+[gcode_macro _SET_FILTER]
+description: Helper: Set Nevermore filter speed
+gcode:
+  # set default parameter value
+  {% set speed = params.S|default(0) %}
+  SET_FAN_SPEED FAN=filter SPEED={speed}
+
+##  Filter On
+[gcode_macro _FILTER_ON]
+description: Helper: Nevermore on
+gcode:
+  _SET_FILTER S={printer['gcode_macro _USER_VARIABLE'].filter_on}
+  
+##  Filter Fan Control in Mainsail
+[gcode_macro FILTER]
+description: Toggle Nevermore fan
+gcode:
+  {% if printer['fan_generic filter'].speed|float > 0.0 %}
+    _SET_FILTER
+  {% else %}
+    _FILTER_ON
+  {% endif %}
+  _FILTER_INFO
+
+[delayed_gcode _DELAY_FILTER_OFF]
+gcode:
+  {% if (printer.idle_timeout.state|lower != "printing") %}
+    _SET_FILTER
+    _FILTER_INFO
+  {% endif %}
+[gcode_macro _FILTER_INFO]
+description: Helper: Print Nevermore speed
+gcode:
+  {% if printer['fan_generic filter'].speed|float > 0.0 %}
+    {% set state='on'%}
+  {% else %}
+    {% set state='off'%}
+  {% endif %}
+  {action_respond_info("Filter Fan %s" % (state))}
+#+END_SRC
+
+** M106 Lock
+Dummy output to get an switch in Mainsail
+Any unused mcu pin can be defined you will not connect anything
+## Off -> M106 will update fan
+## On -> M106 can not uodate fan
+#+BEGIN_SRC conf
+[output_pin lock_M106]
+pin: rpi: gpio16
+value:0
+#+END_SRC
+
+
+
+Actual M106 Lock Macro
+Allows setting the fan speed and locking it from gcode changes
+#+BEGIN_SRC jinja2
+[gcode_macro M106]
+description: set fan with manual override and lock option
+rename_existing: M106.1
+gcode:
+  # get params and prepare to send them to the base macro
+  {% set get_params = [] %}
+  {% for key in params %}
+    {% set get_params = get_params.append(key + params[key])  %}
+  {% endfor %}
+  {%set manual = params.M|default(0) %}
+  {% if printer['output_pin lock_M106'].value|int == 0 or manual == '1' %}
+    M106.1 {get_params|join(" ")}
+  {% else %}
+    {action_respond_info("M106 update is locked")}
+  {% endif %}
+#+END_SRC
+** LCD Display Menu
+COMMENTED_OUT
+
+##+BEGIN_SRC conf
+# ##  Disable stock config
+# [menu __main __control __fanonoff]
+# type: disabled
+
+# [menu __main __control __fanspeed]
+# type: disabled
+
+# ## Add menu for fan, chamber and filter
+# [menu __main __control __fan]
+# type: list
+# name: Fan 
+# index: 5
+
+# [menu __main __control __fan __partcooling]
+# type: list
+# enable: {'fan' in printer}
+# name: Fan {'%3d' % (printer.fan.speed*100)}%
+
+# [menu __main __control __fan __chamber]
+# type: list
+# enable: {'temperature_fan chamber' in printer}
+# name: Chamber {'%2dC' % (printer['temperature_fan chamber'].target) if printer['temperature_fan chamber'].target else 'OFF'}
+
+# [menu __main __control __fan __filter]
+# type: list
+# enable: {'fan_generic filter' in printer}
+# name: Filter {'%3d' % (printer['fan_generic filter'].speed*100)}%
+
+# [menu __main __control __fan __partcooling __fanonoff]
+# type: input
+# name: Toggle: {'ON' if menu.input else 'OFF'}
+# input: {printer.fan.speed}
+# input_min: 0
+# input_max: 1
+# input_step: 1
+# gcode:
+#   M106 S{255 if menu.input else 0}
+
+# [menu __main __control __fan __partcooling __fanspeed]
+# type: input
+# name: Speed: {'%3d' % (menu.input*100)}%
+# input: {printer.fan.speed}
+# input_min: 0
+# input_max: 1
+# input_step: 0.01
+# gcode:
+#   M106 S{'%d' % (menu.input*255)}
+
+# [menu __main __control __fan __chamber __chamberonoff]
+# type: input
+# name: Toggle: {'ON' if menu.input else 'OFF'}
+# input: {printer['temperature_fan chamber'].target}
+# input_min: 0
+# input_max: 1
+# input_step: 1
+# gcode:
+#   {% set temp_on = printer["gcode_macro _USER_VARIABLE"].vent_on|int %}
+#   M141 S{temp_on if menu.input else 0}    
+    
+# [menu __main __control __fan __chamber __chamberfanspeed]
+# type: input
+# name: Temp: {'%2dC' % (menu.input) if menu.input else 'OFF'}
+# input: {printer['temperature_fan chamber'].target}
+# input_min: {printer.configfile.settings['temperature_fan chamber'].min_temp|int}
+# input_max: {printer.configfile.settings['temperature_fan chamber'].max_temp|int}
+# input_step: 1
+# gcode:
+#     M141 S{'%d' % (menu.input)}
+
+# [menu __main __control __fan __filter __filteronoff]
+# type: input
+# name: Toggle: {'ON ' if menu.input else 'OFF'}
+# input: {printer['fan_generic filter'].speed}
+# input_min: 0
+# input_max: 1
+# input_step: 1
+# gcode:
+#  {% if menu.input %}
+#    _FILTER_ON
+#  {% else %}
+#    _SET_FILTER S=0.0
+#  {% endif %}
+
+# [menu __main __control __fan __filter __filterspeed]
+# type: input
+# name: Speed: {'%3d' % (menu.input*100)}%
+# input: {printer['fan_generic filter'].speed}
+# input_min: 0
+# input_max: 1
+# input_step: 0.01
+# gcode:
+#     _SET_FILTER S={menu.input}
+#+END_SRC
+* Lights
+** Case Light
+#+BEGIN_SRC conf
+[output_pin caselight]
+pin: !rpi: gpio24
+pwm: false
+shutdown_value: 0
+#+END_SRC
+
+*** Macros
+#+BEGIN_SRC jinja2
+[gcode_macro _CASELIGHT_ON]
+description: Helper: Light on
+gcode:
+  SET_PIN PIN=caselight VALUE={printer['gcode_macro _USER_VARIABLE'].caselight_on}
+  {action_respond_info("Caselight on")}
+    
+[gcode_macro _CASELIGHT_OFF]
+description: Helper: Light off
+gcode:
+  SET_PIN PIN=caselight VALUE=0.0
+  {action_respond_info("Caselight off")}
+
+[gcode_macro CASELIGHT]
+description: Toggle light
+gcode:
+  {%if printer['output_pin caselight'].value == 0 %}
+    _CASELIGHT_ON
+  {% else %}
+    _CASELIGHT_OFF
+  {% endif %}
+#+END_SRC
+
+*** Display Menu Definition
+COMMENTED_OUT
+##+BEGIN_SRC conf
+# [menu __main __control __caselightonoff]
+# type: input
+# enable: {'output_pin caselight' in printer}
+# name: Lights: {'ON ' if menu.input else 'OFF'}
+# input: {printer['output_pin caselight'].value}
+# input_min: 0
+# input_max: 1
+# input_step: 1
+# gcode:
+#     {% if menu.input %}
+#       _CASELIGHT_ON
+#     {% else %}
+#       _CASELIGHT_OFF
+#     {% endif %}
+#+END_SRC
+* Input Shaper
+#+BEGIN_SRC conf
+[adxl345]
+cs_pin: rpi:None
+##  The SPI speed (in hz) to use when communicating with the chip.
+##  The default is 5000000.
+#spi_speed: 5000000
+## Output data rate for ADXL345. ADXL345 supports the following data
+##  rates: 3200, 1600, 800, 400, 200, 100, 50, and 25. Note that it is
+## not recommended to change this rate from the default 3200, and
+##  rates below 800 will considerably affect the quality of resonance
+##  measurements.
+#rate: 3200
+##  The accelerometer axis for each of the printer's x, y, and z axes.
+##  This may be useful if the accelerometer is mounted in an
+##  orientation that does not match the printer orientation. For
+##  example, one could set this to "y,x,z" to swap the x and y axes.
+##  It is also possible to negate an axis if the accelerometer
+##  direction is reversed (eg, "x,z,-y"). The default is "x,y,z".
+##  receck
+axes_map: x,y,z
+
+#####################################################################
+#  resonance tester definition
+#####################################################################
+[resonance_tester]
+accel_chip: adxl345
+##  A list of X,Y,Z coordinates of points (one point per line) to test
+##  resonances at. At least one point is required. Make sure that all
+##  points with some safety margin in XY plane (~a few centimeters)
+##  are reachable by the toolhead.
+probe_points:  
+    150,150,20
+#    175,175,160
+#    175,175,300
+##  Maximum input shaper smoothing to allow for each axis during shaper
+##  auto-calibration (with 'SHAPER_CALIBRATE' command). By default no
+##  maximum smoothing is specified. Refer to Measuring_Resonances guide
+##  for more details on using this feature.
+#max_smoothing:
+##  Minimum/Maximum frequency to test for resonances.
+min_freq: 5
+max_freq: 133
+##  This parameter is used to determine which acceleration to use to
+##  test a specific frequency: accel = accel_per_hz * freq. Higher the
+##  value, the higher is the energy of the oscillations. Can be set to
+##  a lower than the default value if the resonances get too strong on
+##  the printer. However, lower values make measurements of
+##  high-frequency resonances less precise. The default value is 75
+##  (mm/sec).
+accel_per_hz: 75
+##  Determines the speed of the test. When testing all frequencies in
+##  range [min_freq, max_freq], each second the frequency increases by
+##  hz_per_sec. Small values make the test slow, and the large values
+##  will decrease the precision of the test. The default value is 1.0
+##  (Hz/sec == sec^-2).
+hz_per_sec: 1
+
+#####################################################################
+#  input shaper  definition
+#####################################################################
+[input_shaper]
+##  A frequency (in Hz) of the input shaper for X or Y axis. 
+shaper_freq_x: 59.4
+shaper_freq_y: 46.2
+##  A type of the intput shaper for X or Y axia.
+shaper_type_x: mzv
+shaper_type_y: zv
+##  Damping ratios of vibrations of X and Y axes used by input shapers
+##  to improve vibration suppression. Default value is 0.1 which is a
+##  good all-round value for most printers. In most circumstances this
+##  parameter requires no tuning and should not be changed.
+#damping_ratio_x: 0.1
+#damping_ratio_y: 0.1
+#+END_SRC
+
+** Macros
+#+BEGIN_SRC jinja2
+# !!! This macro only works with the use of gcode_shell_command.py !!!
+# you find both needed files at /klipper_config/script
+#  - gcode_shell_command.py -> klipper add on file
+#  - plot_graph.sh -> shell script that is executed
+# 
+# Setup:
+#  - symlink or copy gcode_shell_command.py to /klipper/klippy/extra
+#    e.g  ln -s /home/pi/klipper_config/script/gcode_shell_command.py /home/pi/klipper/klippy/extras/gcode_shell_command.py
+#  - klipper service restart
+#
+# Please inspect the shell scrip by your own and use it by your own risk
+# Functions:
+#  - Remove _old files if exists
+#  - rename the current files to _old
+#  - copy current cvs files from /tmp to the specified folder
+#  - run the calibrate_shaper.py to generate the graphs and store them at the same location
+#####################################################################
+[gcode_macro RESONANCES_TEST]
+description: Run input shaper test
+gcode:
+  #############  Get hardware enables  #############
+  {% set ena_chamber = printer['gcode_macro _USER_VARIABLE'].chamber|lower %}
+  {% set ena_filter = printer['gcode_macro _USER_VARIABLE'].filter|lower %}
+  ## TEST_RESONANCES will set the accel and accel_to decel
+  _CG28                                                  ; home if needed
+  TURN_OFF_HEATERS                                       ; turn off heaters
+  M107                                                   ; turn off fan
+  {% if ena_chamber == 'fan' %} M141 {% endif %}         ; exhaust fan off
+  {% if ena_filter == 'true' %} _SET_FILTER {% endif %}  ; filter off
+  _PRINT_AR T="INPUT SHAPER: Noise values, check if sensor is installed"
+  MEASURE_AXES_NOISE                                     ; get noise value in log
+  _PRINT_AR T="INPUT SHAPER: Resonance Tests starting ..."
+  TEST_RESONANCES AXIS=X                                 ; measure X 
+  TEST_RESONANCES AXIS=Y                                 ; measure Y
+  _PRINT_AR T="INPUT SHAPER: Resonance Tests done"
+  _PRINT_AR T="INPUT SHAPER: Generate graph in backround"
+  RUN_SHELL_COMMAND CMD=plot_graph
+
+## Shell Comand is not supported by a default klipper installation 
+[gcode_shell_command plot_graph]
+command: sh /home/pi/klipper_config/script/plot_graph.sh
+timeout: 30.
+verbose: True
+#+END_SRC  
+  
+* Other Macros
+** Basic Macros
+Basic Macros, needed by other files.  Mostly for console output.
+#+BEGIN_SRC jinja2
+##  Clear display output after Duration in seconds  
+##  Use: UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=1
+[delayed_gcode _CLEAR_DISPLAY]
+gcode:
+  M117
+
+## Reset SD File after Print_END or CANCEL_PRINT
+## This will avoid the reprint option in Mainsail after a print is done
+[delayed_gcode _DELAY_SDCARD_RESET_FILE]
+gcode:
+  SDCARD_RESET_FILE
+  
+##  action_respond_info will be always executed at the befinning 
+##  of an macro evaluation. Use _PRINT_AR if you need the order 
+##  of several console outputs in the order given by the macro
+##  Use: _PRINT_AR T="QGL forced by PRINT_START"
+[gcode_macro _PRINT_AR]
+description: Helper: Action response 
+gcode:
+  #####  set defaults  #####
+  {% set show_lcd = params.SHOW_LCD|default('false') %}
+  {% if show_lcd == 'true' %}
+    M117 {'%s' % (params.T|string)}
+  {% endif %}
+  {action_respond_info("%s" % (params.T|string))}
+
+##  print runout sensor information in any case even is no
+##  runout is specified
+[gcode_macro _RUNOUT_INFO]
+description: Helper: Print runout sensor status
+gcode:
+  #############  Get hardware enables  #############
+  {% set ena_runout = printer['gcode_macro _USER_VARIABLE'].runout|lower %}
+  #############  Generate output varibles  #############
+  {% if ena_runout == 'switch' %}
+    {% set enabled = printer['filament_switch_sensor runout'].enabled|lower %}
+    {% set sensor = 'Switch Sensor' %}
+    {% if printer['filament_switch_sensor runout'].enabled|lower == 'true' %}
+      {% set filament_detected = printer['filament_switch_sensor runout'].filament_detected|lower %}
+    {% elif 'virtual_sdcard' in printer and filament_loaded in printer.save_variables.variables %}
+      {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+    {% else %}
+      {% set filament_detected = 'unknown' %}
+    {% endif %}
+  {% elif ena_runout == 'motion' %}
+    {% set enabled = printer['filament_motion_sensor runout'].enabled|lower %}
+    {% set sensor = 'Motion Sensor' %}
+    {% if printer['filament_motion_sensor runout'].enabled|lower == 'true' %}
+      {% set filament_detected = printer['filament_motion_sensor runout'].filament_detected|lower %}
+    {% elif 'virtual_sdcard' in printer and filament_loaded in printer.save_variables.variables %}
+      {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+    {% else %}
+      {% set filament_detected = 'unknown' %}
+    {% endif %}
+  {% elif ena_runout == 'file' %}
+    {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+    {% set enabled = 'false' %}
+    {% set sensor = 'Stored in file' %}
+  {% else %}
+    {% set filament_detected = 'unknown' %}
+    {% set enabled = 'false' %}
+    {% set sensor = 'Not monitored' %}
+  {% endif %}
+  #############  End of definition  #############
+  {action_respond_info("RUNOUT: %s
+                        Enabled: %s
+                        Detect Filament: %s" % (sensor, enabled|lower,filament_detected|lower))}
+
+##  adds version info of mcu to M115
+[gcode_macro M115]
+description: Print host and mcu version
+rename_existing: M115.1
+gcode:
+  {% set parameters = namespace(output = 'mcu build version: \n') %}
+  {% for name1 in printer %}
+    {% for name2 in printer[name1] %}
+      {% set show = ['mcu_version'] %}
+      {% if name2 is in show %}
+        {% set param = "%s: %s" % (name1, printer[name1][name2]) %}
+        {% set parameters.output = parameters.output +  param + "\n" %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {action_respond_info(parameters.output)}
+  M115.1
+#+END_SRC
+** Print Macros
+*** Print Start
+#+BEGIN_SRC jinja2
+[gcode_macro PRINT_START]
+description: All commands needed before the print
+##  User Paramaters
+##  BED_TEMP      : Target temperature for the Bed. Is also used to decide 
+##                  if heatsoak is needed
+##  EXTRUDER_TEMP : Target temperature for the Extruder
+##  CHAMBER_TEMP  : Target temperature for the chamber fan controll
+##  SOAK          : Soak time in minutes
+##  DELTA_B       : Allowed delta between actual bed temperature and target
+##                  temperature for the decision if heat soak is needed.
+##  DELTA_C       : Allowed delta between actual chamber temperature and target
+##                  will wait until target reached or time is zero
+##  CHAMBER_SOAK  : Extra Soak time if Chamber is not on target - DELTA_C
+##  EXTRA_SOAK    : Enables Chamber Soak ('true'/'false')
+##  LAYER_HEIGHT  : Height of prime_line should be set to layer_hight
+##  Z_ADJUST      : Add extra z offset via slicer
+##  System Varables
+variable_extruder: 245
+variable_bed: 100
+variable_chamber: 40
+variable_chamber_delta: 5
+variable_redo_qgl: 'true'
+variable_soak_tval: 0
+variable_soak_tval_c: 0
+variable_endstop: 0
+variable_print_info: 'true'
+variable_prime_height: 0
+variable_z_adjust: 0.0
+## Valid state 
+##   Prepare : decision if heat Soak is needed 
+##   HeatSoak: loop the time specified with SOAK
+##   Chamber : wait for chamber reached CHAMBER_SOAK 
+##   Final   : all what needs to be done after wait timet
+variable_state: 'Prepare'
+gcode:
+  #############  Get user defines  #############
+  {% set park_pos = printer['gcode_macro _USER_VARIABLE'].park_bed %}
+  {% set soak_ival = printer['gcode_macro _USER_VARIABLE'].print_start_ival|int %}
+  {% set soak_bed_up = printer['gcode_macro _USER_VARIABLE'].print_start_bed_up|int %}
+  {% set extuder_start_time = printer['gcode_macro _USER_VARIABLE'].print_start_extruder_time|int * 60 %}
+  {% set bed_reduce_time = printer['gcode_macro _USER_VARIABLE'].print_start_bed_time|int * 60 %}
+  {% set prime_mult = printer['gcode_macro _USER_VARIABLE'].print_start_prime_mult|float %}
+  #############  Get hardware enables  #############
+  {% set ena_neo = printer['gcode_macro _USER_VARIABLE'].neo_display|lower %}
+  {% set ena_chamber = printer['gcode_macro _USER_VARIABLE'].chamber|lower %}
+  {% set ena_caselight = printer['gcode_macro _USER_VARIABLE'].caselight|lower %}
+  {% set ena_filter = printer['gcode_macro _USER_VARIABLE'].filter|lower %}
+  {% set ena_runout = printer['gcode_macro _USER_VARIABLE'].runout|lower %}
+  {% set ena_relay = printer['gcode_macro _USER_VARIABLE'].relay|lower %}
+  {% set ena_auto_z_offset = printer['gcode_macro _USER_VARIABLE'].auto_z_offset|lower %}
+  #############  BED temp values  #############
+  # get actual temp from extra sensor or heater sensor
+  {% if 'temperature_sensor bed' in printer %}
+    {% set actBed = printer['temperature_sensor bed'].temperature|int %}
+  {% else %}
+    {% set actBed = printer.heater_bed.temperature|int %}
+  {% endif %}
+  # get max allow bed temp from config. Lower it by 5C to avoid shutdown
+  {% set cfg_bed_max = printer.configfile.settings.heater_bed.max_temp|int - 5 %}
+  #############  Definition done  #############
+  ##  Prepare phase only done at the first exection of PRINT_START
+  {% if state == 'Prepare' %}
+    #############  Store input parameters only at first execution  #############
+    {% set bed_temp = params.BED_TEMP|default(100)|int %}
+    {% set extruder_temp = params.EXTRUDER_TEMP|default(245)|int %}
+    {% set chamber_temp = params.CHAMBER_TEMP|default(60)|int %}
+    {% set soak = params.SOAK|default(0)|int * 60 %}
+    {% set delta_b = params.DELTA_B|default(0)|int %}
+    {% set delta_c = params.DELTA_C|default(0)|int %}
+    {% set chamber_soak = params.CHAMBER_SOAK|default(0)|int * 60 %}
+    {% set extra_soak = params.EXTRA_SOAK|default('false') %}
+    {% set p_height = params.LAYER_HEIGHT|default(0.2)|float * prime_mult %}
+    {% set adjust_z = params.Z_ADJUST|default(0.0)|float %}
+    #############  Variable Setup  #############
+    {% set targetBed = bed_temp - delta_b %}
+    {% if cfg_bed_max > bed_temp + soak_bed_up %}
+      {% set bed_soak_temp = bed_temp + soak_bed_up %}
+    {% else %}
+      {% set bed_soak_temp = cfg_bed_max %}
+    {% endif %}
+    ############# Store Values for the complete PRINT_START execution #############
+    SET_GCODE_VARIABLE MACRO=CANCEL_PRINT VARIABLE=execute VALUE='"false"'
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=print_info VALUE='"true"'
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=extruder VALUE={extruder_temp}
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=bed VALUE={bed_temp}
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=chamber VALUE={chamber_temp}
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=chamber_delta VALUE={delta_c}
+    {% if extra_soak == 'true' and ena_chamber != 'none' %}
+       SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval_c VALUE={chamber_soak}
+    {% else %}
+      SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval_c VALUE=0
+    {% endif %}
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=prime_height VALUE={p_height}
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=z_adjust VALUE={adjust_z}
+    #############  Get filament runout info  #############
+    {% if ena_runout == 'switch' %}
+      {% if printer['filament_switch_sensor runout'].enabled|lower == 'true' %}
+        {% set filament_detected = printer['filament_switch_sensor runout'].filament_detected|lower %}
+      {% elif 'virtual_sdcard' in printer and filament_loaded in printer.save_variables.variables %}
+        {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+      {% else %}
+        {% set filament_detected = 'true' %}
+      {% endif %}
+    {% elif ena_runout == 'motion' %}
+      {% if printer['filament_motion_sensor runout'].enabled|lower == 'true' %}
+        {% set filament_detected = printer['filament_motion_sensor runout'].filament_detected|lower %}
+      {% elif 'virtual_sdcard' in printer and filament_loaded in printer.save_variables.variables %}
+        {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+      {% else %}
+        {% set filament_detected = 'true' %}
+      {% endif %}
+    {% elif ena_runout == 'file' %}
+      {% set filament_detected = printer.save_variables.variables.filament_loaded %}
+    {% else %}
+      {% set filament_detected = 'true' %}
+    {% endif %}
+    #############  Definition done  #############
+    _RUNOUT_INFO
+    {% if filament_detected == 'true' %}
+      {% if ena_auto_z_offset == 'flexplate' %} _DISPLAY_PLATE {% endif %}
+      {% if ena_relay == 'true' %} _HEATER_ON {% endif %}
+      {% if ena_caselight == 'true' %} _CASELIGHT_ON {% endif %}
+      {% if ena_neo == 'true' %} _LCD_KNOB COLOR=RED BLINK=1  {% endif %}
+      {% if ena_chamber == 'fan' %} M141 S0  {% endif %}   ; exhaust fan off
+      {% if ena_filter == 'true' %} _FILTER_ON {% endif %} ; activate filter
+      _CG28                                                ; home if needed
+      # Move to Middle
+      G90
+      G0 Z{park_pos[2]} F1800                 ; move nozzle to z high first
+      G0 X{park_pos[0]} Y{park_pos[1]} F18000 ; home to get toolhead in the middle
+      # check if soak time is 0 or if the bed is still hot
+      {% if (soak <= 0) or (actBed >= targetBed) %}
+        M117 Heating Extruder
+        {% if (soak <= 0) %}
+          _PRINT_AR T="{"Bed temp: act %3dC min %3dC (target(%3dC) - delta(%dC)) heat soak disabled" % (actBed,targetBed,bed_temp,delta_b)}"
+        {% else %}
+          _PRINT_AR T="{"Bed temp: act %3dC min %3dC (target(%3dC) - delta(%dC)) heat soak not needed" % (actBed,targetBed,bed_temp,delta_b)}"
+        {% endif %}
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=redo_qgl VALUE='"false"'
+        M140 S{bed_temp}      ; heat bed
+        M109 S{extruder_temp} ; heat extruder and wait
+        M190 S{bed_temp}      ; heat bed and wait
+        M400                  ; wait for buffer to clear
+        PAUSE_BASE
+        # go to chamber soak wait
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"Chamber"'
+        UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION=0.1
+      {% else %}
+        M117 Heating Bed
+        _PRINT_AR T="{"Bed temp: act %3dC min %3dC (target(%3dC) - delta(%dC)) heat soak needed" % (actBed,targetBed,bed_temp,delta_b)}"
+        _PRINT_AR T="{"Set Bed temp to %3dC instead of %3dC for faster heat soak" % (bed_soak_temp,bed_temp)}"
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=redo_qgl VALUE='"true"'
+        M106 S90              ; switch part cooling ~35% to move air in chamber
+        M140 S{bed_soak_temp} ; heat bed
+        M400                  ; wait for buffer to clear
+        PAUSE_BASE
+        # Call the wait macro the first time
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"HeatSoak"'
+        _PRINT_TIME TEXT="HEAT SOAK" TIME={soak}
+        {% if soak > soak_ival %}
+          # soak time is bigger than interval 
+          SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval VALUE={soak - soak_ival}
+          UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak_ival}
+        {% else %}
+          # soak time is smaller than interval
+          SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval VALUE=0
+          UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak}
+        {% endif %}
+      {% endif%}    
+    {% else %}
+      _PRINT_AR T="No Filament loaded, print canceled!"
+      CANCEL_PRINT_BASE
+      UPDATE_DELAYED_GCODE ID=_DELAY_SDCARD_RESET_FILE DURATION=10
+    {% endif%}
+  ## Heatsoak Phase call the delay macro until time is over
+  {% elif state == 'HeatSoak' %}
+    # switch on extruder at _USER_VARIABLE.print_start_extruder_time
+    {% if (soak_tval) <= extuder_start_time + (extruder) - 240  %}
+      {%if extruder != printer.extruder.target|int %}
+        M104 S{extruder} ; heat extruder
+      {% endif %}
+    {% endif %}
+    # switch bed to first layer temp at _USER_VARIABLE.print_start_bed_time 
+    {% if (soak_tval) <= bed_reduce_time  %}
+      {% if bed != printer.heater_bed.target|int %}
+        M140 S{bed} ; heat bed
+      {% endif %}
+    {% endif %}
+    # check remaining time 
+    {% if soak_tval > 0 %}
+      # check if interval is bigger than remaining time
+      {% if soak_ival >= soak_tval %}
+        # run last loop with time
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval VALUE=0
+        UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak_tval}
+      {% else %}
+        ## reduce time by interval
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval VALUE={soak_tval - soak_ival}
+        UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak_ival}
+      {% endif %}
+    {% else %}
+      # go to chamber soak wait
+      SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"Chamber"'
+      UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION=0.1
+      _PRINT_AR T="{"Bed act temp=%3dC heat soak done" % (actBed|int)}"
+    {% endif %}
+  {% elif state == 'Chamber' %}
+    {% set chamber_target = chamber - chamber_delta %}
+    {% if ena_chamber == 'fan' %}
+      {% set chamber_act = printer['temperature_fan chamber'].temperature|int %}
+    {% elif ena_chamber == 'sensor' %}
+      {% set chamber_act = printer['temperature_sensor chamber'].temperature|int %}
+    {% else %}
+      {% set chamber_act = 0 %}
+    {% endif %}
+    # check remaining time and temp difference 
+    {% if (soak_tval_c > 0) and (chamber_act|int < chamber_target|int) %}
+      {% if print_info == 'true' %}
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=print_info VALUE='"false"'
+        _PRINT_AR T="{"Chamber temp: act %3dC min %3dC (target(%2dC) - delta(%dC)) heat soak needed" % (chamber_act,chamber_target, chamber, chamber_delta)}"
+        _PRINT_TIME TEXT="CHAMBER" TIME={soak_tval_c}
+      {% endif %}
+      # check if interval is bigger than remaining time
+      {% if soak_ival >= soak_tval_c %}
+        ## last loop 
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval_c VALUE=0
+        UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak_tval_c}
+      {% else %}
+        ## reduce time by interval
+        SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=soak_tval_c VALUE={soak_tval_c - soak_ival}
+        UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION={soak_ival}
+      {% endif %}
+    {% else %}
+      {% if soak_tval_c == 0 %}
+        {% if print_info == 'true' %}
+          _PRINT_AR T="{"Chamber temp: act %3dC min %3dC (target(%2dC) - delta(%dC)) heat soak disabled" % (chamber_act,chamber_target, chamber, chamber_delta)}"
+        {% else %}
+          _PRINT_AR T="{"Chamber temp: act %3dC min %3dC (target(%2dC) - delta(%dC)) heat soak timed out" % (chamber_act,chamber_target, chamber, chamber_delta)}"
+         {% endif %}
+      {% else %}
+        {% if print_info == 'true' %}
+          _PRINT_AR T="{"Chamber temp: act %3dC min %3dC (target(%2dC) - delta(%dC)) heat soak not needed" % (chamber_act,chamber_target, chamber, chamber_delta)}"
+        {% else %}
+          _PRINT_AR T="{"Chamber temp: act %3dC min %3dC (target(%2dC) - delta(%dC)) heat soak temp reached" % (chamber_act,chamber_target, chamber, chamber_delta)}"
+        {% endif %} 
+      {% endif %}
+      SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"Final"'
+      UPDATE_DELAYED_GCODE ID=_START_PRINT_WAIT DURATION=0.1
+    {% endif %}
+  ## all whats need to run at the end
+  {% elif state == 'Final' %}
+    RESUME_BASE
+    # set status back to prepare for the next run 
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"Prepare"'     
+    {% if ena_neo == 'true' %} _LCD_KNOB COLOR=RED  {% endif %}
+    M106 S0                                                   ; turn off part cooling fan
+    G21                                                       ; set units to millimeters
+    G32                                                       ; home & QGL
+    {% if ena_chamber == 'fan' %} M141 S{chamber} {% endif %} ; set target temp for exhaust fan
+    NOZZLECLEAN
+    G28 Z                                                     ; home Z with clean nozzle
+    {% if ena_auto_z_offset == 'z_calib' %} CALIBRATE_Z {% endif %}
+    SET_GCODE_OFFSET Z_ADJUST={z_adjust} MOVE=1
+    _PRINT_OFFSET
+    {% if prime_height > 0 %}
+      PRIME_LINE PRIME_HEIGHT={prime_height}
+      #PRIME_BALL
+    {% else %}
+      #PRIME_BALL
+      PRIME_LINE
+    {% endif %}
+    {% if 'temperature_sensor endstop' in printer.configfile.settings %}
+      SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=endstop VALUE={printer['temperature_sensor endstop'].temperature}
+    {% endif %}
+    G90                                                       ; use absolute coordinates
+    ;M83                                                       ; use relative distances for extrusion
+    UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=1
+  {% endif %}
+
+# This is called every PRINT_START intervale 
+# This is needed to stop PRINT_START using CANCEL_PRINT
+[delayed_gcode _START_PRINT_WAIT]
+gcode:
+  # Print remaining time
+  {% if printer['gcode_macro PRINT_START'].state == 'HeatSoak' %}
+    {% set tval = printer['gcode_macro PRINT_START'].soak_tval %}
+    _PRINT_TIME TEXT="HEAT SOAK" TIME={tval|int}
+  {% elif printer['gcode_macro PRINT_START'].state == 'Chamber' %}
+    {% set tval = printer['gcode_macro PRINT_START'].soak_tval_c %}
+    _PRINT_TIME TEXT="SOAK" TIME={tval|int}
+  {% endif %}
+  # Check CANCLE_PRINT was executed
+  {% if printer['gcode_macro CANCEL_PRINT'].execute == 'false' %}
+    PRINT_START  ; Junp back to PRINT_START
+  {% else %}
+    # break loop
+    # insure state is correct for the next print start
+    SET_GCODE_VARIABLE MACRO=CANCEL_PRINT VARIABLE=execute VALUE='"false"'
+    SET_GCODE_VARIABLE MACRO=PRINT_START VARIABLE=state VALUE='"Prepare"'
+    UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=1
+  {% endif %}
+#+END_SRC
+  
+*** Print End
+#+BEGIN_SRC jinja2
+[gcode_macro PRINT_END]
+description: All commands after the print
+gcode:
+  SAVE_GCODE_STATE NAME=STATE_PRINT_END
+  ##### Get Boundaries #####
+  {% set max_x = printer.toolhead.axis_maximum.x|float %}
+  {% set max_y = printer.toolhead.axis_maximum.y|float %}
+  {% set max_z = printer.toolhead.axis_maximum.z|float %}
+  {% set act_x = printer.toolhead.position.x|float %}
+  {% set act_y = printer.toolhead.position.y|float %}
+  {% set act_z = printer.toolhead.position.z|float %}
+  ##### Get user defines #####
+  {% set purge_pos = printer['gcode_macro _USER_VARIABLE'].purge %}
+  {% set vent_on = printer['gcode_macro _USER_VARIABLE'].vent_on|int %}
+  {% set retreact = printer['gcode_macro _USER_VARIABLE'].retreact_end|float * -1 %}
+  {% set fan_off = printer['gcode_macro _USER_VARIABLE'].fan_run_after_print|int * 60 %}
+  {% set vent_off = printer['gcode_macro _USER_VARIABLE'].fan_run_after_print|int * 60 + 5 %}
+  #############  Get hardware enables  #############
+  {% set ena_neo = printer['gcode_macro _USER_VARIABLE'].neo_display|lower %}
+  {% set ena_chamber = printer['gcode_macro _USER_VARIABLE'].chamber|lower %}
+  {% set ena_caselight = printer['gcode_macro _USER_VARIABLE'].caselight|lower %}
+  {% set ena_filter = printer['gcode_macro _USER_VARIABLE'].filter|lower %}
+  {% set ena_unload_sd = printer['gcode_macro _USER_VARIABLE'].print_end_unload_sd|lower %}
+  ##### Calculate save move #####
+  {% if act_x < (max_x - 20.0) %}
+    {% set x_safe = 20.0 %}
+  {% else %}
+    {% set x_safe = -20.0 %}
+  {% endif %}
+  {% if act_y < (max_y - 20.0) %}
+    {% set y_safe = 20.0 %}
+  {% else %}
+    {% set y_safe = -20.0 %}
+  {% endif %}
+  {% if act_z < (max_z - 2.0) %}
+    {% set z_safe = 2.0 %}
+  {% else %}
+    {% set z_safe = max_z - act_z %}
+  {% endif %}
+  ##### end of definitions #####
+  M400                                                      ; wait for buffer to clear
+  G92 E0                                                    ; zero the extruder
+  M83                                                       ; relative extrusion
+  G1 E{retreact} F1800                                      ; retract filament
+  G91                                                       ; relative positioning
+  G0 X{x_safe} Y{y_safe} Z{z_safe} F20000                   ; move nozzle to remove stringing
+  TURN_OFF_HEATERS                                          ; turn off heaters
+  M107                                                      ; turn off fan
+  {% if ena_chamber == 'fan' %} M141 S{vent_on} {% endif %} ; vent chamber (setting fan to below ambient)
+  G90                                                       ; absolute positioning
+  G0 X{purge_pos[0]} Y{purge_pos[1]} F18000                 ; park nozzle at brush bin
+  _ADD_PRINT_TIME
+  _SD_PRINT_STATS R='done'
+  _SD_PRINTER_STATS
+  {% if ena_neo == 'true' %} _LCD_KNOB COLOR=GREEN {% endif %}
+  {% if ena_caselight == 'true' %} _CASELIGHT_OFF {% endif %}
+  {% if ena_chamber == 'fan' %} UPDATE_DELAYED_GCODE ID=_DELAY_VENT_OFF DURATION={vent_off} {% endif %}
+  {% if ena_filter == 'true' %} UPDATE_DELAYED_GCODE ID=_DELAY_FILTER_OFF DURATION={fan_off} {% endif %}
+  {% if 'temperature_sensor endstop' in printer.configfile.settings %}
+    _PRINT_ENDSTOP_TEMP
+  {% endif %}
+  {% if ena_unload_sd == 'true' %} UPDATE_DELAYED_GCODE ID=_DELAY_SDCARD_RESET_FILE DURATION=10 {% endif %}
+  UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=10
+  RESTORE_GCODE_STATE NAME=STATE_PRINT_END
+  #####  set speed and extruder factor to default  #####
+  M220 S100
+  M221 S100
+
+#+END_SRC
+
+*** Other
+#+BEGIN_SRC jinja2
+[gcode_macro G32]
+description: Execute plate offset and QGL
+gcode:
+  #############  Get hardware enables  #############
+  {% set ena_auto_z_offset = printer['gcode_macro _USER_VARIABLE'].auto_z_offset|lower %}
+  #############  END of defines  #############
+  _PRINT_AR T="Home & QGL" SHOW_LCD=true
+  _CG28 ; home if not already homed
+  BED_MESH_CLEAR
+  ## flexplate must be excluded if switching to z_calibration
+  {% if ena_auto_z_offset == 'z_calib' %} SET_GCODE_OFFSET Z=0
+  {% elif ena_auto_z_offset == 'flexplate' %} _SET_PLATE_OFFSET {% endif %}
+  ## check if QGL was already executed
+  ## variable redo_qgl will always force a QGL
+  {% if printer['gcode_macro PRINT_START'].redo_qgl == 'true' %}
+    _PRINT_AR T="QGL forced by PRINT_START"
+    QUAD_GANTRY_LEVEL PARK=false
+  {% else %} 
+    ## if no QGL was done until now
+    {% if printer.quad_gantry_level.applied|lower == 'false' %}
+      _PRINT_AR T="QGL not executed yet"
+      QUAD_GANTRY_LEVEL PARK=false
+    {% endif %}
+  {% endif %}
+  UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=1
+
+[gcode_macro M204]
+description: Set and limit acceleration to cfg value
+rename_existing: M204.1
+gcode:
+  #####  get accel from parameter  #####
+  {% if 'S' in params and params.S|float > 0 %}
+      {% set param_accel = params.S|float %}
+  {% elif 'P' in params and 'T' in params and params.P|float > 0 and params.T|float > 0 %}
+    {% if params.P|float > params.T|float %}    
+      {% set param_accel = params.T|float %}
+    {% else %}
+      {% set param_accel = params.P|float %}
+    {% endif %}
+  {% endif %}
+  #####  get limits from config  #####
+  {% set max_accel = printer.configfile.settings.printer.max_accel|float %}
+  {% set max_accel_to_decel = printer.configfile.settings.printer.max_accel_to_decel|float %}
+  #####  end of definition  #####
+  {% if param_accel is defined %}  
+    #####  calc accel_to deccel  #####
+    {% set param_accel_to_decel = (param_accel / 2.0) %}
+    #####  limit values to config values  ##### 
+    {% if param_accel < max_accel %}
+      {% set accel = param_accel %}
+    {% else %}
+      {% set accel = max_accel %}
+    {% endif %}
+    {% if param_accel_to_decel < max_accel_to_decel %}
+      {% set accel_to_decel = param_accel_to_decel %}
+    {% else %}
+      {% set accel_to_decel = max_accel_to_decel %}
+    {% endif %}
+    #####  set value  #####
+    SET_VELOCITY_LIMIT ACCEL={accel} ACCEL_TO_DECEL={accel_to_decel}
+  {% else %}
+    {% set get_params = [] %}
+    {% for key in params %}
+      {% if key is not in ['M'] %}
+        {% set get_params = get_params.append(key + params[key]) %}
+      {% endif %}
+    {% endfor %}
+    {action_respond_info("Invalid M204 command \"M204 %s\"" % get_params|join(" "))}
+  {% endif %}
+  
+[gcode_macro M900]
+description: Set pressure advance
+gcode:
+  SET_PRESSURE_ADVANCE ADVANCE={params.K|default(0)}
+
+## print Offsets defined by user and/or calibrate_z    z_calib flexplate
+[gcode_macro _PRINT_OFFSET]
+description: Print gcode offsets defined by script or user in PRINT_START
+gcode:
+  {% set user_z_adjust = printer['gcode_macro PRINT_START'].z_adjust|default(0.0) %}
+  {% set z_calib_z_adjust = printer.z_calibration.last_z_offset|default(0.0) %}
+  {% set act_z_adjust = printer.gcode_move.homing_origin.z %}
+  {% set ena_auto_z_offset = printer['gcode_macro _USER_VARIABLE'].auto_z_offset|lower %}
+  {% if ena_auto_z_offset == 'z_calib' %} 
+     {action_respond_info("GCODE OFFSET for Z applied from:
+                           User %.3f
+                           CALIBRATE_Z %.3f
+                           Actual total %.3f" % (user_z_adjust,z_calib_z_adjust,act_z_adjust))}
+  {% else %}
+    {action_respond_info("GCODE OFFSET for Z applied from:
+                          User %.3f
+                          Actual total %.3f" % (user_z_adjust,act_z_adjust))}
+  {% endif %}
+    
+## print endstop temperature used only by PRINT_END
+[gcode_macro _PRINT_ENDSTOP_TEMP]
+description: Print endstop temp for start and end print
+gcode:
+  {% set endstop_start = printer['gcode_macro PRINT_START'].endstop %}
+  {% set endstop_end = printer['temperature_sensor endstop'].temperature %}
+  {% if 'temperature_sensor bed' in printer %}
+    {% set actBed = printer['temperature_sensor bed'].temperature %}
+  {% else %}
+    {% set actBed = printer.heater_bed.temperature %}
+  {% endif %}
+  {action_respond_info("PRINT_END
+                        BED temp: act %3.2fC
+                        Endstop temp: start %2.2fC end %2.2fC" % (actBed, endstop_start, endstop_end))}
+
+## print time value used only by PRINT_START
+[gcode_macro _PRINT_TIME]
+description: Helper: Print time for start macro
+gcode:
+  #####  set defaults  #####
+  {% set text = params.TEXT|default('Timer') %}
+  {% set show_ar = params.SHOW_AR|default('false') %}
+  #####  calc values for time  #####
+  {% set minutes = ((params.TIME|int / 60) % 60)|int %}
+  {% set seconds = (params.TIME|int % 60)|int %}
+  M117 {'%s' % (TEXT)} {minutes|int}:{'%02d' % (seconds|int)}
+  {%if show_ar == 'true' %}
+    {action_respond_info("%s %d:%02d" % (text,minutes|int,seconds|int))}
+  {% endif %}
+#+END_SRC
