@@ -406,6 +406,124 @@ check_gain_time: 60
 hysteresis: 5
 heating_gain: 2
 #+END_SRC
+* Homing
+** Homing Override
+#+BEGIN_SRC conf
+  [homing_override]
+  axes: z
+  set_position_z: 0
+  gcode:
+    
+    ##### get user defines #####
+    # use -10 as default to insure it error in case the variable is not existing
+    {% set z_endstop = printer['gcode_macro _USER_VARIABLE'].z_endstop|default([-10,-10]) %}
+    {% set z_endstop_hop = printer['gcode_macro _USER_VARIABLE'].z_endstop_hop %}
+    {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop %}
+    ##### end of definitions #####
+    SAVE_GCODE_STATE NAME=STATE_HOMING
+    G91                      ; set relative
+    G0 Z{z_endstop_hop} F900 ; lift nozzle
+    G90                      ; set absolute
+    ## reduce current of Z motors
+    _SET_ACC VAL=HOME
+    _SET_Z_CURRENT VAL=HOME
+    # Home X and Y only for G28 or G28 XYZ
+    {% if 'Z' in params|upper %}
+      {% if "x" not in printer.toolhead.homed_axes %}
+	G28 X
+      {% endif %}
+      {% if "y" not in printer.toolhead.homed_axes %}
+	G28 Y
+      {% endif %}
+    {% else %}
+      G28 X Y
+    {% endif %}      
+    ##	XY Location of the Z Endstop Switch
+    G0 X{z_endstop[0]} Y{z_endstop[1]} F7200 
+    # Home Z
+    G28 Z
+    ## move nozzle from pin
+    G0 Z2 F300
+    ## return to org current settings
+    _SET_Z_CURRENT
+    _SET_ACC
+    # Lift Z
+    G0 Z{z_hop} F1800
+    RESTORE_GCODE_STATE NAME=STATE_HOMING
+#+END_SRC
+
+** Conditional Homing
+#+BEGIN_SRC jinja2
+[gcode_macro _CG28]
+description: Helper: Conditional homing
+gcode:
+  {% if "xyz" not in printer.toolhead.homed_axes %}
+    G28
+  {% endif %}
+#+END_SRC
+
+** Set Z Current
+#+BEGIN_SRC jinja2
+[gcode_macro _SET_Z_CURRENT]
+description: Helper: Set Z-drive motor current
+variable_last_val: 'CONFIG'
+gcode:
+  ###### set default values #####
+  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_z_current|int %}
+  {% set val = params.VAL|default('CONFIG') %}
+  {% set respond = params.RESPOND|default(default_respond)|int %}
+  {% if val == 'HOME' %}
+    {% set z_run  = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
+    {% set z_hold = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
+  {% else %}
+    {% if 'tmc2209 stepper_z' in printer.configfile.settings %}
+      {% set z_run  = printer.configfile.settings['tmc2209 stepper_z'].run_current %}
+      {% set z_hold = printer.configfile.settings['tmc2209 stepper_z'].hold_current %}
+    {% elif 'tmc5160 stepper_z' in printer.configfile.settings %}
+      {% set z_run  = printer.configfile.settings['tmc5160 stepper_z'].run_current %}
+      {% set z_hold = printer.configfile.settings['tmc5160 stepper_z'].hold_current %}
+    {% endif %}
+  {% endif %}
+  ##### end of definition #####
+  {% if val != last_val %}
+    SET_GCODE_VARIABLE MACRO=_SET_Z_CURRENT VARIABLE=last_val VALUE='"{val}"'
+    {% if respond == 1 %}
+      {action_respond_info("Home&Probe: RunCur %.2fA rms HoldCur %.2fA rms" % (z_run|float, z_hold|float))}
+    {% endif %}
+    SET_TMC_CURRENT STEPPER=stepper_z  CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z1 CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z2 CURRENT={z_run} HOLDCURRENT={z_hold}
+    SET_TMC_CURRENT STEPPER=stepper_z3 CURRENT={z_run} HOLDCURRENT={z_hold}
+    M400
+  {% endif %}
+#+END_SRC
+
+** Set Acceleration
+#+BEGIN_SRC jinja2
+[gcode_macro _SET_ACC]
+description: Helper: Set accel and accel_to_decel value
+variable_last_val: 'CONFIG'
+gcode:
+  ##### set default value #####
+  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_acc|int %}
+  {% set val = params.VAL|default('CONFIG') %}
+  {% set respond = params.RESPOND|default(default_respond)|int %}
+  {% if val == 'HOME' %}
+    {% set accel = printer['gcode_macro _USER_VARIABLE'].home_accel %}
+    {% set accel_to_decel = printer['gcode_macro _USER_VARIABLE'].home_accel|int / 2 %}
+  {% else %}
+    {% set accel = printer.configfile.settings.printer.max_accel %}
+    {% set accel_to_decel = printer.configfile.settings.printer.max_accel_to_decel %}
+  {% endif %}
+  ##### end of definition #####
+  {% if val != last_val %}
+    SET_GCODE_VARIABLE MACRO=_SET_ACC VARIABLE=last_val VALUE='"{val}"'
+    {% if respond == 1 %}
+      {action_respond_info("VELOCITY_LIMIT set ACCEL: %d ACCEL_TO_DECEL: %d" % (accel|int, accel_to_decel|int))}
+    {% endif %}
+    SET_VELOCITY_LIMIT ACCEL={accel} ACCEL_TO_DECEL={accel_to_decel}
+  {% endif %}
+#+END_SRC
 * Probe and QGL
 ** Probe
 *** Config
@@ -425,6 +543,37 @@ samples_tolerance_retries: 3
 #+END_SRC
 *** Mag Probe Macros
 #+BEGIN_SRC conf
+  [gcode_macro _MAG_PROBE]
+  description: Store Mag Probe Variables
+  variable_state: 'docked'
+  variable_status: 'triggered'
+  gcode:
+    {% if printer.probe.last_query %}
+      SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=status VALUE="'triggered'"
+      {action_respond_info("set triggered")}
+    {% else %}
+      SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=status VALUE="'open'"
+      {action_respond_info("set open")}
+    {% endif %}
+
+  [gcode_macro _GET_MAG_PROBE]
+  gcode:
+    QUERY_PROBE
+    _MAG_PROBE
+
+  [delayed_gcode _SET_INITIAL_MAG_PROBE]
+  initial_duration: 1
+  gcode:
+    _GET_MAG_PROBE
+    #{% if printer['gcode_macro _MAG_PROBE'].status|lower == 'open' %}
+    {% if not printer.probe.last_query %}
+      SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=state VALUE='"attached"'
+      {action_respond_info('probe attached')}
+    {% endif %}
+
+#+END_SRC
+
+##+BEGIN_SRC conf
 #####################################################################
 #  User Macros
 #####################################################################
@@ -466,7 +615,7 @@ gcode:
 #####################################################################
 # QUERY_PROBE must run direct before _PROBE_ACTION
 # that relation is insured by the caller id
-[gcode_macro _mag_probe]
+[gcode_macro _MAG_PROBE]
 description: Helper: Query MagProbe state and request action
 variable_state: 'unknown'
 variable_id: 0
@@ -1255,123 +1404,6 @@ gcode:
 *** readme
 ##  Probe points are nozzle positions, we need to substract the probe offset
 
-* Homing
-** Homing Override
-#+BEGIN_SRC jinja2
-[homing_override]
-axes: z
-set_position_z: 0
-gcode:
-  ##### get user defines #####
-  # use -10 as default to insure it error in case the variable is not existing
-  {% set z_endstop = printer['gcode_macro _USER_VARIABLE'].z_endstop|default([-10,-10]) %}
-  {% set z_endstop_hop = printer['gcode_macro _USER_VARIABLE'].z_endstop_hop %}
-  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop %}
-  ##### end of definitions #####
-  SAVE_GCODE_STATE NAME=STATE_HOMING
-  G91                      ; set relative
-  G0 Z{z_endstop_hop} F900 ; lift nozzle
-  G90                      ; set absolute
-  ## reduce current of Z motors
-  _SET_ACC VAL=HOME
-  _SET_Z_CURRENT VAL=HOME
-  # Home X and Y only for G28 or G28 XYZ
-  {% if 'Z' in params|upper %}
-    {% if "x" not in printer.toolhead.homed_axes %}
-      G28 X
-    {% endif %}
-    {% if "y" not in printer.toolhead.homed_axes %}
-      G28 Y
-    {% endif %}
-  {% else %}
-    G28 X Y
-  {% endif %}      
-  ##	XY Location of the Z Endstop Switch
-  G0 X{z_endstop[0]} Y{z_endstop[1]} F7200 
-  # Home Z
-  G28 Z
-  ## move nozzle from pin
-  G0 Z2 F300
-  ## return to org current settings
-  _SET_Z_CURRENT
-  _SET_ACC
-  # Lift Z
-  G0 Z{z_hop} F1800
-  RESTORE_GCODE_STATE NAME=STATE_HOMING
-#+END_SRC
-
-** Conditional Homing
-#+BEGIN_SRC jinja2
-[gcode_macro _CG28]
-description: Helper: Conditional homing
-gcode:
-  {% if "xyz" not in printer.toolhead.homed_axes %}
-    G28
-  {% endif %}
-#+END_SRC
-
-** Set Z Current
-#+BEGIN_SRC jinja2
-[gcode_macro _SET_Z_CURRENT]
-description: Helper: Set Z-drive motor current
-variable_last_val: 'CONFIG'
-gcode:
-  ###### set default values #####
-  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_z_current|int %}
-  {% set val = params.VAL|default('CONFIG') %}
-  {% set respond = params.RESPOND|default(default_respond)|int %}
-  {% if val == 'HOME' %}
-    {% set z_run  = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
-    {% set z_hold = printer['gcode_macro _USER_VARIABLE'].z_home_current %}
-  {% else %}
-    {% if 'tmc2209 stepper_z' in printer.configfile.settings %}
-      {% set z_run  = printer.configfile.settings['tmc2209 stepper_z'].run_current %}
-      {% set z_hold = printer.configfile.settings['tmc2209 stepper_z'].hold_current %}
-    {% elif 'tmc5160 stepper_z' in printer.configfile.settings %}
-      {% set z_run  = printer.configfile.settings['tmc5160 stepper_z'].run_current %}
-      {% set z_hold = printer.configfile.settings['tmc5160 stepper_z'].hold_current %}
-    {% endif %}
-  {% endif %}
-  ##### end of definition #####
-  {% if val != last_val %}
-    SET_GCODE_VARIABLE MACRO=_SET_Z_CURRENT VARIABLE=last_val VALUE='"{val}"'
-    {% if respond == 1 %}
-      {action_respond_info("Home&Probe: RunCur %.2fA rms HoldCur %.2fA rms" % (z_run|float, z_hold|float))}
-    {% endif %}
-    SET_TMC_CURRENT STEPPER=stepper_z  CURRENT={z_run} HOLDCURRENT={z_hold}
-    SET_TMC_CURRENT STEPPER=stepper_z1 CURRENT={z_run} HOLDCURRENT={z_hold}
-    SET_TMC_CURRENT STEPPER=stepper_z2 CURRENT={z_run} HOLDCURRENT={z_hold}
-    SET_TMC_CURRENT STEPPER=stepper_z3 CURRENT={z_run} HOLDCURRENT={z_hold}
-    M400
-  {% endif %}
-#+END_SRC
-
-** Set Acceleration
-#+BEGIN_SRC jinja2
-[gcode_macro _SET_ACC]
-description: Helper: Set accel and accel_to_decel value
-variable_last_val: 'CONFIG'
-gcode:
-  ##### set default value #####
-  {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_set_acc|int %}
-  {% set val = params.VAL|default('CONFIG') %}
-  {% set respond = params.RESPOND|default(default_respond)|int %}
-  {% if val == 'HOME' %}
-    {% set accel = printer['gcode_macro _USER_VARIABLE'].home_accel %}
-    {% set accel_to_decel = printer['gcode_macro _USER_VARIABLE'].home_accel|int / 2 %}
-  {% else %}
-    {% set accel = printer.configfile.settings.printer.max_accel %}
-    {% set accel_to_decel = printer.configfile.settings.printer.max_accel_to_decel %}
-  {% endif %}
-  ##### end of definition #####
-  {% if val != last_val %}
-    SET_GCODE_VARIABLE MACRO=_SET_ACC VARIABLE=last_val VALUE='"{val}"'
-    {% if respond == 1 %}
-      {action_respond_info("VELOCITY_LIMIT set ACCEL: %d ACCEL_TO_DECEL: %d" % (accel|int, accel_to_decel|int))}
-    {% endif %}
-    SET_VELOCITY_LIMIT ACCEL={accel} ACCEL_TO_DECEL={accel_to_decel}
-  {% endif %}
-#+END_SRC
 * Bed Mesh
 #+BEGIN_SRC conf
 [bed_mesh]
@@ -3539,6 +3571,45 @@ gcode:
   {% else %}
     {action_respond_info("WARNING: parameter S needed call e.g. DUMP_SETTINGS S='printer'")}
   {% endif %}
+
+[gcode_macro SEARCH_VARS]
+gcode:
+    {% set search = params.S|lower %}
+    {% set ns = namespace() %}
+    {% for item in printer  %}
+        {% if ' ' in item %}
+            {% set ns.path = ['printer', "['%s']" % (item), ''] %}
+        {% else %}
+            {% set ns.path = ['printer.', item, ''] %}   
+        {% endif %} 
+
+        {% if search in ns.path|lower %}
+            { action_respond_info(ns.path|join) }
+        {% endif %} 
+
+        {% if printer[item].items() %}
+            {% for childkey, child in printer[item].items() recursive %}
+                {% set ns.path = ns.path[:loop.depth|int + 1] %}
+
+                {% if ' ' in childkey %}
+                    {% set null = ns.path.append("['%s']" % (childkey)) %}
+                {% else %}
+                    {% set null = ns.path.append(".%s" % (childkey)) %}
+                {% endif %} 
+
+                {% if child is mapping  %}
+                    { loop(child.items()) }
+                {% else %}
+                    {% if search in ns.path|lower %}
+                        { action_respond_info("%s : %s" % (ns.path|join, child)) }   
+                    {% endif %} 
+                {% endif %} 
+                
+            {% endfor %}
+        {% endif %} 
+    {% endfor %}
+
+
 
 #####################################################################
 #  Macros needed for several debug activities
