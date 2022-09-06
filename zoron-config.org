@@ -30,43 +30,43 @@ Section outlining tasks not related to configuration.
     PRINT_END
     
 * Config Header
-  #+BEGIN_SRC conf
-  ## Voron Design VORON2 300mm Fysetc Spider TMC2209 UART config
-  ## Generated from zoron-config.org
-  #+END_SRC
+#+BEGIN_SRC conf
+## Voron Design VORON2 300mm Fysetc Spider TMC2209 UART config
+## Generated from zoron-config.org
+#+END_SRC
 * MCU Definition
 ** Spider Board
-    #+BEGIN_SRC conf
-    [mcu]
-    serial: /dev/serial/by-id/usb-Klipper_stm32f446xx_42001E001850563046363120-if00
-    restart_method: command
-    #+END_SRC
+#+BEGIN_SRC conf
+[mcu]
+serial: /dev/serial/by-id/usb-Klipper_stm32f446xx_42001E001850563046363120-if00
+restart_method: command
+#+END_SRC
 
 ** Raspberry Pi
-    #+BEGIN_SRC conf
-    [mcu rpi]
-    serial: /tmp/klipper_host_mcu
-    #+END_SRC 
+#+BEGIN_SRC conf
+[mcu rpi]
+serial: /tmp/klipper_host_mcu
+#+END_SRC
 * Printer Definition and General Config
-  Printer Kinematics and Speeds
-  #+BEGIN_SRC conf
-	[printer]
-	kinematics: corexy
-	max_velocity: 500
-	max_accel: 9000
-	max_accel_to_decel: 4000
-	max_z_velocity: 50
-	max_z_accel: 500
-	square_corner_velocity: 5.0
+Printer Kinematics and Speeds
+#+BEGIN_SRC conf
+[printer]
+kinematics: corexy
+max_velocity: 500
+max_accel: 9000
+max_accel_to_decel: 4000
+max_z_velocity: 50
+max_z_accel: 500
+square_corner_velocity: 5.0
 
 
-	[exclude_object]
+[exclude_object]
 
-	[save_variables]
-	filename: /home/pi/klipper_config/.variables.stb
+[save_variables]
+filename: /home/pi/klipper_config/.variables.stb
 
-	[virtual_sdcard]
-	path: ~/gcode_files
+[virtual_sdcard]
+path: ~/gcode_files
 
 #+END_SRC
 
@@ -119,38 +119,38 @@ full_steps_per_rotation: 200
 microsteps: 16
 
 #+BEGIN_SRC conf
-    [stepper_y]
-    step_pin: PD8
-    dir_pin: PB12
-    enable_pin: !PD9
-    full_steps_per_rotation: 400
-    microsteps: 32
-    rotation_distance: 40
-    endstop_pin: ^PA2
-    position_min: 0
-    position_endstop: 308
-    position_max: 308
-    homing_speed: 100
-    homing_retract_dist: 2
-    second_homing_speed: 5
-    homing_positive_dir: true
+[stepper_y]
+step_pin: PD8
+dir_pin: PB12
+enable_pin: !PD9
+full_steps_per_rotation: 400
+microsteps: 32
+rotation_distance: 40
+endstop_pin: ^PA2
+position_min: 0
+position_endstop: 308
+position_max: 308
+homing_speed: 100
+homing_retract_dist: 2
+second_homing_speed: 5
+homing_positive_dir: true
 #+END_SRC
 
 **** Driver - Y - TMC 2209
 #+BEGIN_SRC conf
-  [tmc2209 stepper_y]
-  uart_pin: PE15
-  interpolate: true
-  run_current: 1.2
-  hold_current: 0.8
-  sense_resistor: 0.110
-  stealthchop_threshold: 0
-  driver_TBL: 2
-  driver_TOFF: 3
-  driver_HEND: 3
-  driver_HSTRT: 0
-  driver_PWM_GRAD: 8
-  driver_PWM_LIM: 9
+[tmc2209 stepper_y]
+uart_pin: PE15
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 2
+driver_TOFF: 3
+driver_HEND: 3
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 9
 
 #+END_SRC
 
@@ -167,7 +167,7 @@ microsteps: 16
 
 ** Steppers Z
 *** MAIN - Stepper Z0 - MCU - Z-MOT - Z0 Stepper - Front Left
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [stepper_z]
 step_pin: PD14
 dir_pin: !PD13
@@ -186,24 +186,24 @@ homing_retract_dist: 2.0
 #+END_SRC
 
 **** Driver - Z0 - TMC 2209
-#+BEGIN_SRC jinja2
-  [tmc2209 stepper_z]
-  uart_pin: PD10
-  interpolate: true
-  run_current: 1.2
-  hold_current: 0.8
-  sense_resistor: 0.110
-  stealthchop_threshold: 0
-  driver_TBL: 0
-  driver_TOFF: 7
-  driver_HEND: 2
-  driver_HSTRT: 0
-  driver_PWM_GRAD: 8
-  driver_PWM_LIM: 10
+#+BEGIN_SRC conf
+[tmc2209 stepper_z]
+uart_pin: PD10
+interpolate: true
+run_current: 1.2
+hold_current: 0.8
+sense_resistor: 0.110
+stealthchop_threshold: 0
+driver_TBL: 0
+driver_TOFF: 7
+driver_HEND: 2
+driver_HSTRT: 0
+driver_PWM_GRAD: 8
+driver_PWM_LIM: 10
 #+END_SRC
 
 *** Stepper Z1 - MCU - E1-MOT - Z1 Stepper - Rear Left
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [stepper_z1]
 step_pin: PE6
 dir_pin: PC13
@@ -215,7 +215,7 @@ rotation_distance: 40
 #+END_SRC
 
 **** Driver - Z1 - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [tmc2209 stepper_z1]
 uart_pin: PC14
 interpolate: true
@@ -232,7 +232,7 @@ driver_PWM_LIM: 10
 #+END_SRC
 
 *** Stepper Z2 - MCU - E2-MOT - Z2 Stepper - Rear Right
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [stepper_z2]
 step_pin: PE2
 dir_pin: !PE4
@@ -244,7 +244,7 @@ rotation_distance: 40
 #+END_SRC
 
 **** Driver - Z2 - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [tmc2209 stepper_z2]
 uart_pin: PC15
 interpolate: true
@@ -261,7 +261,7 @@ driver_PWM_LIM: 10
 #+END_SRC
 
 *** Stepper Z3 - MCU - E3-MOT - Z3 Stepper - Front Right
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [stepper_z3]
 step_pin: PD12
 dir_pin: PC4
@@ -273,7 +273,7 @@ rotation_distance: 40
 #+END_SRC
 
 **** Driver - Z3 - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [tmc2209 stepper_z3]
 uart_pin: PA15
 interpolate: true
@@ -302,7 +302,7 @@ microsteps: 16
 
 ** Steppers E
 *** Stepper Extruder - MCU - E-MOT - E0 - TH0
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [extruder]
 step_pin: PD5
 dir_pin: !PD6
@@ -330,7 +330,7 @@ max_extrude_only_distance: 500
 #+END_SRC
 
 **** Driver - E0 - TMC 2209
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [tmc2209 extruder]
 uart_pin: PD7
 interpolate: false
@@ -384,7 +384,7 @@ heating_gain: 2
 
 ** Heater Bed
 *** SSR - MCU - TB - Fan0
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [heater_bed]
 heater_pin: PB4
 sensor_type: Generic 3950
@@ -425,63 +425,63 @@ samples_tolerance_retries: 3
 #+END_SRC
 *** Mag Probe Macros
 #+BEGIN_SRC conf
-  #####################################################################
-  #  User Macros
-  #####################################################################
-  ## Used the same names as in <https://github.com/KevinOConnor/klipper/pull/4328>
-  ## to make the switch easier after the PR is merged
-  [gcode_macro ATTACH_PROBE]
-  description: Attaching the MagProbe if not already attached
-  gcode:
+#####################################################################
+#  User Macros
+#####################################################################
+## Used the same names as in <https://github.com/KevinOConnor/klipper/pull/4328>
+## to make the switch easier after the PR is merged
+[gcode_macro ATTACH_PROBE]
+description: Attaching the MagProbe if not already attached
+gcode:
     _MAG_PROBE ACTION=ATTACH
     _MAG_PROBE ACTION=CHECK_ATTACH
 
-  [gcode_macro DETACH_PROBE]
-  description: Dock the MagProbe if not already docked
-  gcode:
+[gcode_macro DETACH_PROBE]
+description: Dock the MagProbe if not already docked
+gcode:
     _MAG_PROBE ACTION=DOCK
     _MAG_PROBE ACTION=CHECK_DOCK
-  
-  [gcode_macro GET_PROBE_STATUS]
-  description: Prints the current MagProbe state, valid probe states are UNKNOWN, ATTACHED and DOCKED
-  gcode:
-    _MAG_PROBE ACTION=GET_STATUS RESPOND=1
-  
 
-  [gcode_macro SET_PROBE_STATUS]
-  description: Manually specify MagProbe status, valid probe states are UNKNOWN, ATTACHED and DOCKED
-  variable_state: 'unknown'
-  gcode:
-    {% if 'STATE' in params|upper and 
-	  (params.STATE|lower == 'unknown' or params.STATE|lower == 'attached' or params.STATE|lower == 'docked') %}
-      SET_GCODE_VARIABLE MACRO=SET_PROBE_STATUS VARIABLE=state VALUE='"{params.STATE|lower}"'
-      SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=state VALUE='"{params.STATE|lower}"'
+[gcode_macro GET_PROBE_STATUS]
+description: Prints the current MagProbe state, valid probe states are UNKNOWN, ATTACHED and DOCKED
+gcode:
+    _MAG_PROBE ACTION=GET_STATUS RESPOND=1
+
+
+[gcode_macro SET_PROBE_STATUS]
+description: Manually specify MagProbe status, valid probe states are UNKNOWN, ATTACHED and DOCKED
+variable_state: 'unknown'
+gcode:
+    {% if 'STATE' in params|upper and
+        (params.STATE|lower == 'unknown' or params.STATE|lower == 'attached' or params.STATE|lower == 'docked') %}
+        SET_GCODE_VARIABLE MACRO=SET_PROBE_STATUS VARIABLE=state VALUE='"{params.STATE|lower}"'
+        SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=state VALUE='"{params.STATE|lower}"'
     {% else %}
-      {% set state = params.STATE|default('none') %}
-      {action_raise_error("Invalid probe state: %s. Valid probe states are [UNKNOWN, ATTACHED, DOCKED]" % state|upper)}
+        {% set state = params.STATE|default('none') %}
+        {action_raise_error("Invalid probe state: %s. Valid probe states are [UNKNOWN, ATTACHED, DOCKED]" % state|upper)}
     {% endif %}
-    
-  #####################################################################
-  #  Helper Macros
-  #####################################################################
-  # QUERY_PROBE must run direct before _PROBE_ACTION
-  # that relation is insured by the caller id
-  [gcode_macro _MAG_PROBE]
-  description: Helper: Query MagProbe state and request action
-  variable_state: 'unknown'
-  variable_id: 0
-  gcode:
+
+#####################################################################
+#  Helper Macros
+#####################################################################
+# QUERY_PROBE must run direct before _PROBE_ACTION
+# that relation is insured by the caller id
+[gcode_macro _MAG_PROBE]
+description: Helper: Query MagProbe state and request action
+variable_state: 'unknown'
+variable_id: 0
+gcode:
     ##### add RESPOND if specified #####
     {% if 'RESPOND' in params|upper %}
-      {% set respond = "RESPOND=" + params.RESPOND %}
+        {% set respond = "RESPOND=" + params.RESPOND %}
     {% else %}
-      {% set respond = "" %}
+        {% set respond = "" %}
     {% endif %}
     ##### generate an id not equal to 0 #####
     {% if id == 0 %}
-      {% set id = 1 %}
+        {% set id = 1 %}
     {% else %}
-      {% set id = id + 1 %}
+        {% set id = id + 1 %}
     {% endif %}
     ##### end of definition #####
     QUERY_PROBE ID={id}
@@ -489,9 +489,9 @@ samples_tolerance_retries: 3
     SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=id VALUE={id}
     M400
 
-  [gcode_macro _PROBE_ACTION]
-  description: Helper: Perform MagProbe action
-  gcode:
+[gcode_macro _PROBE_ACTION]
+description: Helper: Perform MagProbe action
+gcode:
     ##### get params and defaults #####
     {% set default_respond = printer['gcode_macro _USER_VARIABLE'].respond_probe_action|int %}
     {% set respond = params.RESPOND|default(default_respond)|int %}
@@ -502,78 +502,78 @@ samples_tolerance_retries: 3
     {% set man_state = printer['gcode_macro SET_PROBE_STATUS'].state|lower %}
     ##### generate state #####
     {% if man_state != 'unknown' %}
-      SET_GCODE_VARIABLE MACRO=SET_PROBE_STATUS VARIABLE=state VALUE='"unknown"'
-      {% set state = man_state %}
-      {% if respond == 1 %}
-	{action_respond_info("MagProbe: State was set to %s by SET_PROBE_STATUS"% man_state|upper)}
-      {% endif %}
+        SET_GCODE_VARIABLE MACRO=SET_PROBE_STATUS VARIABLE=state VALUE='"unknown"'
+        {% set state = man_state %}
+        {% if respond == 1 %}
+    {action_respond_info("MagProbe: State was set to %s by SET_PROBE_STATUS"% man_state|upper)}
+        {% endif %}
     {% elif id == 0 or id != probe_id %}
-      {action_raise_error("MagProbe: Call ID invalid or does not match QUERY_PROBE call ID")}
+        {action_raise_error("MagProbe: Call ID invalid or does not match QUERY_PROBE call ID")}
     {% elif printer.probe.last_query|lower == 'false' %}
-      {action_raise_error("MagProbe: Please execute QUERY_PROBE first")}
+        {action_raise_error("MagProbe: Please execute QUERY_PROBE first")}
     {% else %}
-      {% if printer.probe.last_query|int == 0 %}
-	{% set state = 'attached' %}
-      {% else %}
-	{% set state = 'docked' %}
-      {% endif %}
+        {% if printer.probe.last_query|int == 0 %}
+    {% set state = 'attached' %}
+        {% else %}
+    {% set state = 'docked' %}
+        {% endif %}
     {% endif %}
     ##### end of defines #####
     SET_GCODE_VARIABLE MACRO=_MAG_PROBE VARIABLE=state VALUE='"{state}"'
     {% if action == 'attach' %}
-      {% if state == 'docked' %}
-	{% if respond == 1 %}
-	  {action_respond_info("MagProbe: Attach Probe")}
-	{% endif %}
-	_ATTACH_PROBE
-      {% else %}
-	{% if respond == 1 %}
-	  {action_respond_info("MagProbe: already attached")}
-	{% endif %}
-      {% endif %}
+        {% if state == 'docked' %}
+    {% if respond == 1 %}
+        {action_respond_info("MagProbe: Attach Probe")}
+    {% endif %}
+    _ATTACH_PROBE
+        {% else %}
+    {% if respond == 1 %}
+        {action_respond_info("MagProbe: already attached")}
+    {% endif %}
+        {% endif %}
     {% elif action == 'dock' %}
-      {% if state == 'attached' %}
-	{% if respond == 1 %}
-	  {action_respond_info("MagProbe: Dock Probe")}
-	{% endif %}
-	_DOCK_PROBE
-      {% else %}
-	{% if respond == 1 %}
-	  {action_respond_info("MagProbe: May already be docked. Safety Check")}
-	{% endif %}
-      {% endif %}
+        {% if state == 'attached' %}
+    {% if respond == 1 %}
+        {action_respond_info("MagProbe: Dock Probe")}
+    {% endif %}
+    _DOCK_PROBE
+        {% else %}
+    {% if respond == 1 %}
+        {action_respond_info("MagProbe: May already be docked. Safety Check")}
+    {% endif %}
+        {% endif %}
     {% elif action == 'check_dock' %}
-      {% if state != 'docked' %}
-	{action_raise_error("MagProbe: dock failed!")}
-      {% endif %}
+        {% if state != 'docked' %}
+    {action_raise_error("MagProbe: dock failed!")}
+        {% endif %}
     {% elif action == 'check_attach' %}
-      {% if state != 'attached' %}
-	{action_raise_error("MagProbe: attach failed!")}
-      {% endif %}
+        {% if state != 'attached' %}
+    {action_raise_error("MagProbe: attach failed!")}
+        {% endif %}
     {% elif action == 'get_status' %}
-      {% if respond == 1 %}
-	{action_respond_info("MagProbe Status: %s" % state)}
-      {% endif %}
+        {% if respond == 1 %}
+    {action_respond_info("MagProbe Status: %s" % state)}
+        {% endif %}
     {% else %}
-      {action_raise_error("MagProbe: action not defined")}
+        {action_raise_error("MagProbe: action not defined")}
     {% endif %}
 
-  ## used probe: klicky probe
-  ## the probe is mounted at the moving gantry -> therefor no Z move needed
-  ##
-  ## Attach:
-  ## 1) Prepare Dock: X(probe_undock_x) Y(probe_undock_y) -> next to the probe dock
-  ## 2) Dock Probe  : X(probe_dock_x)                     -> dock the probe
-  ## 3) Finisch Dock: Y(probe_dock_y)                     -> move probe out of holder
-  ##
-  ## Dock:
-  ## 1) Prepare UnDock: X(probe_dock_x) Y(probe_dock_y) -> infront of  probe dock
-  ## 2) UnDock Probe  : Y(probe_undock_y)               -> get probe into dock
-  ## 3) Finisch UnDock: X(probe_undock_x)               -> move head next to dock
-  ##
-  [gcode_macro _ATTACH_PROBE]
-  description: Helper: Attach MagProbe
-  gcode:
+## used probe: klicky probe
+## the probe is mounted at the moving gantry -> therefor no Z move needed
+##
+## Attach:
+## 1) Prepare Dock: X(probe_undock_x) Y(probe_undock_y) -> next to the probe dock
+## 2) Dock Probe  : X(probe_dock_x)                     -> dock the probe
+## 3) Finisch Dock: Y(probe_dock_y)                     -> move probe out of holder
+##
+## Dock:
+## 1) Prepare UnDock: X(probe_dock_x) Y(probe_dock_y) -> infront of  probe dock
+## 2) UnDock Probe  : Y(probe_undock_y)               -> get probe into dock
+## 3) Finisch UnDock: X(probe_undock_x)               -> move head next to dock
+##
+[gcode_macro _ATTACH_PROBE]
+description: Helper: Attach MagProbe
+gcode:
     ##### Get user defines #####
     {% set dock_pos = printer['gcode_macro _USER_VARIABLE'].probe_dock %}
     {% set undock_pos = printer['gcode_macro _USER_VARIABLE'].probe_undock %}
@@ -586,16 +586,16 @@ samples_tolerance_retries: 3
     SAVE_GCODE_STATE NAME=STATE_ATTACH_PROBE
     G90                                             ; absolute positioning
     {% if act_z < z_hop %}
-      G1 Z{z_hop} F900                              ; move head up
+        G1 Z{z_hop} F900                              ; move head up
     {% endif %}
     G0 X{undock_pos[0]} Y{undock_pos[1]} F{t_speed} ; move next to mag-probe
     G0 X{dock_pos[0]} F{d_speed}                    ; move sidewards to attach probe
     G0 Y{dock_pos[1]} F{d_speed}                    ; move out of holder
     RESTORE_GCODE_STATE NAME=STATE_ATTACH_PROBE
 
-  [gcode_macro _DOCK_PROBE]
-  description: Helper: Dock MagProbe
-  gcode:
+[gcode_macro _DOCK_PROBE]
+description: Helper: Dock MagProbe
+gcode:
     ##### Get user defines #####
     {% set dock_pos = printer['gcode_macro _USER_VARIABLE'].probe_dock %}
     {% set undock_pos = printer['gcode_macro _USER_VARIABLE'].probe_undock %}
@@ -608,56 +608,56 @@ samples_tolerance_retries: 3
     SAVE_GCODE_STATE NAME=STATE_DOCK_PROBE
     G90                                         ; absolute positioning
     {% if act_z < z_hop %}
-      G1 Z{z_hop} F900                          ; move head up
+        G1 Z{z_hop} F900                          ; move head up
     {% endif %}
     G0 X{dock_pos[0]} Y{dock_pos[1]} F{t_speed} ; move infront of mag-probe
     G0 Y{undock_pos[1]} F{d_speed}              ; move into the holder
     G0 X{undock_pos[0]} F{d_speed}              ; move sidewards to remove probe
     RESTORE_GCODE_STATE NAME=STATE_DOCK_PROBE
 
-  #####################################################################
-  #   Customized standard macros
-  #####################################################################
-  #  QUAD_GANTRY_LEVEL can be found in probe_qgl.cfg 
-  #  BED_MESH_CALIBRATE can be found in bed_mesh.cfg
-  #####################################################################
-  #
-  #        !!! Caution !!!
-  #
-  # PROBE_CALIBRATE can not dock the Magprobe automaticly, as it 
-  # start's a scripting process we need to stop at the execution 
-  # of the base macro. Use 
-  #  - PROBE_ABORT
-  #  - PROBE_ACCEPT
-  # instead of the orignal ABORT and ACCEPT to also dock the probe
-  #
-  #####################################################################
-  #
-  # If your probe needs a Z move for attach/detach use either
-  #   G0 .... FORCE
-  #   G1 .... FORCE
-  #
-  #####################################################################
-  [gcode_macro G0]
-  description: Move gcode that prevents moves lower than the limit when probe attached
-  rename_existing: G0.1
-  gcode:
+#####################################################################
+#   Customized standard macros
+#####################################################################
+#  QUAD_GANTRY_LEVEL can be found in probe_qgl.cfg
+#  BED_MESH_CALIBRATE can be found in bed_mesh.cfg
+#####################################################################
+#
+#        !!! Caution !!!
+#
+# PROBE_CALIBRATE can not dock the Magprobe automaticly, as it
+# start's a scripting process we need to stop at the execution
+# of the base macro. Use
+#  - PROBE_ABORT
+#  - PROBE_ACCEPT
+# instead of the orignal ABORT and ACCEPT to also dock the probe
+#
+#####################################################################
+#
+# If your probe needs a Z move for attach/detach use either
+#   G0 .... FORCE
+#   G1 .... FORCE
+#
+#####################################################################
+[gcode_macro G0]
+description: Move gcode that prevents moves lower than the limit when probe attached
+rename_existing: G0.1
+gcode:
     #####  get hardware enables  #####
     {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
     ##### MagProbe state #####
     {% set probe_state = printer['gcode_macro _MAG_PROBE'].state|default('unknown')|lower %}
     ##### set manual override #####
     {% if 'FORCE' in params|upper or ena_mag_probe == 'false' %}
-      {% set force = 1 %}
+        {% set force = 1 %}
     {% else %}
-      {% set force = 0 %}
+        {% set force = 0 %}
     {% endif %}
     ##### get params #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% if key is not in ['G', 'FORCE'] %} ;G1/G0 is also seen as paramter
-	{% set get_params = get_params.append(key + "=" + params[key])  %}
-      {% endif %}
+        {% if key is not in ['G', 'FORCE'] %} ;G1/G0 is also seen as paramter
+    {% set get_params = get_params.append(key + "=" + params[key])  %}
+        {% endif %}
     {% endfor %}
     ##### add caller #####
     {% set tmp = get_params.append("CALLER=G0") %} ;hack to append list objects outside of a loop
@@ -665,30 +665,30 @@ samples_tolerance_retries: 3
     {% set tmp = get_params.append("FORCE=" + force|string) %} ;hack to append list objects outside of a loop
     ##### end of definition #####
     {% if probe_state == 'unknown' and force == 0 %}
-      _MAG_PROBE ACTION=GET_STATUS RESPOND=0
+        _MAG_PROBE ACTION=GET_STATUS RESPOND=0
     {% endif %}
     _Z_MOVE_CHECK {get_params|join(" ")}
 
-  [gcode_macro G1]
-  description: Move gcode that prevents moves lower than the limit when probe attached
-  rename_existing: G1.1
-  gcode:
+[gcode_macro G1]
+description: Move gcode that prevents moves lower than the limit when probe attached
+rename_existing: G1.1
+gcode:
     #####  get hardware enables  #####
     {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
     ##### MagProbe state #####
     {% set probe_state = printer['gcode_macro _MAG_PROBE'].state|default('unknown')|lower %}
     ##### set manual override #####
     {% if 'FORCE' in params|upper or ena_mag_probe == 'false' %}
-      {% set force = 1 %}
+        {% set force = 1 %}
     {% else %}
-      {% set force = 0 %}
+        {% set force = 0 %}
     {% endif %}
     ##### get params #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% if key is not in ['G', 'FORCE'] %} ;G1/G0 is also seen as paramter
-	{% set get_params = get_params.append(key + "=" + params[key])  %}
-      {% endif %}
+        {% if key is not in ['G', 'FORCE'] %} ;G1/G0 is also seen as paramter
+    {% set get_params = get_params.append(key + "=" + params[key])  %}
+        {% endif %}
     {% endfor %}
     ##### add caller #####
     {% set tmp = get_params.append("CALLER=G1") %} ;hack to append list objects outside of a loop
@@ -696,13 +696,13 @@ samples_tolerance_retries: 3
     {% set tmp = get_params.append("FORCE=" + force|string) %} ;hack to append list objects outside of a loop
     ##### end of definition #####
     {% if probe_state == 'unknown' and force == 0 %}
-      _MAG_PROBE ACTION=GET_STATUS RESPOND=0
+        _MAG_PROBE ACTION=GET_STATUS RESPOND=0
     {% endif %}
     _Z_MOVE_CHECK {get_params|join(" ")}
-  
-  [gcode_macro _Z_MOVE_CHECK]
-  description: Helper: Check limit and performe move
-  gcode:
+
+[gcode_macro _Z_MOVE_CHECK]
+description: Helper: Check limit and performe move
+gcode:
     ##### define defaults ######
     {% set caller = params.CALLER|default('G0')|upper %}
     {% set force = params.FORCE|default(0)|int %}
@@ -714,49 +714,49 @@ samples_tolerance_retries: 3
     ##### get params and prepare to send them to the base macro #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% if key is not in ['Z', 'CALLER', 'FORCE'] %}
-	{% set get_params = get_params.append(key + params[key]) %}
-      {% elif key is in ['Z'] %}
-	{% if force == 1 %} ;manual override of probe check
-	  {% set get_params = get_params.append(key + params[key]) %}
-	{% elif probe_state ==  'unknown' %}
-	  {action_raise_error("%s: MagProbe state %s run \"_MAG_PROBE ACTION=GET_STATUS\"" % (caller, probe_state|upper))}
-	{% elif probe_state ==  'docked' %}
-	  {% set get_params = get_params.append(key + params[key]) %}
-	{% elif probe_state ==  'attached' %}
-	  ##### define move target position depending on absolute_coordinates #####
-	  {% if printer.gcode_move.absolute_coordinates|lower == 'true' %}
-	    {% set z_target = params.Z|float %}
-	  {% else %}
-	    {% set z_target = z_act + params.Z|float %}
-	  {% endif %}
-	  ##### decide if a Z move can be executed #####
-	  {% if z_target > z_min or z_act < z_target %}
-	    {% set get_params = get_params.append(key + params[key]) %}              
-	  {% else %}
-	    {action_respond_info("%s: Z Moves lower than %.1fmm not allowed with installed probe" % (caller,z_min))}  
-	  {% endif %}
-	{% else %}
-	  {action_raise_error("%s: MagProbe state %s not valid" % (caller, probe_state|upper))}
-	{% endif %}
-      {% endif %}
+        {% if key is not in ['Z', 'CALLER', 'FORCE'] %}
+    {% set get_params = get_params.append(key + params[key]) %}
+        {% elif key is in ['Z'] %}
+    {% if force == 1 %} ;manual override of probe check
+        {% set get_params = get_params.append(key + params[key]) %}
+    {% elif probe_state ==  'unknown' %}
+        {action_raise_error("%s: MagProbe state %s run \"_MAG_PROBE ACTION=GET_STATUS\"" % (caller, probe_state|upper))}
+    {% elif probe_state ==  'docked' %}
+        {% set get_params = get_params.append(key + params[key]) %}
+    {% elif probe_state ==  'attached' %}
+        ##### define move target position depending on absolute_coordinates #####
+        {% if printer.gcode_move.absolute_coordinates|lower == 'true' %}
+        {% set z_target = params.Z|float %}
+        {% else %}
+        {% set z_target = z_act + params.Z|float %}
+        {% endif %}
+        ##### decide if a Z move can be executed #####
+        {% if z_target > z_min or z_act < z_target %}
+        {% set get_params = get_params.append(key + params[key]) %}
+        {% else %}
+        {action_respond_info("%s: Z Moves lower than %.1fmm not allowed with installed probe" % (caller,z_min))}
+        {% endif %}
+    {% else %}
+        {action_raise_error("%s: MagProbe state %s not valid" % (caller, probe_state|upper))}
+    {% endif %}
+        {% endif %}
     {% endfor %}
     ##### end of definitions #####
     {caller}.1 {get_params|join(" ")}
 
-  [gcode_macro QUERY_PROBE]
-  description: Return the status of the z-probe and store ID
-  rename_existing: QUERY_PROBE_BASE
-  variable_id: 0
-  gcode:
+[gcode_macro QUERY_PROBE]
+description: Return the status of the z-probe and store ID
+rename_existing: QUERY_PROBE_BASE
+variable_id: 0
+gcode:
     {% set id = params.ID|default(0) %} ; call id 0 menas invalid
     QUERY_PROBE_BASE
     SET_GCODE_VARIABLE MACRO=QUERY_PROBE VARIABLE=id VALUE={id}
 
-  [gcode_macro PROBE_ACCURACY]
-  description: Probe Z-height accuracy at current XY position and dock/undock MagProbe
-  rename_existing: PROBE_ACCURACY_BASE
-  gcode:
+[gcode_macro PROBE_ACCURACY]
+description: Probe Z-height accuracy at current XY position and dock/undock MagProbe
+rename_existing: PROBE_ACCURACY_BASE
+gcode:
     #####  get new parameter. #####
     {% set dock = params.DOCK|default(1)|int %} ; use DOCK=0 to omit the probe docking
     #####  get hardware enables  #####
@@ -770,32 +770,32 @@ samples_tolerance_retries: 3
     ##### get params and prepare to send them to the base macro #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% set get_params = get_params.append(key + "=" + params[key])  %}
+        {% set get_params = get_params.append(key + "=" + params[key])  %}
     {% endfor %}
     ##### end of definitions #####
     # as we need to return to the position with the probe we need to be at least at z_hop
     G90 ; absolute positioning
     {% if ena_mag_probe == 'true' and act_z < z_hop %}
-      {action_respond_info("PROBE_ACCURACY: High must be above %.2f" % z_hop)}
-      G1 Z{z_hop} F900 ; move head up
+        {action_respond_info("PROBE_ACCURACY: High must be above %.2f" % z_hop)}
+        G1 Z{z_hop} F900 ; move head up
     {% endif %}
     M400 ; get the buffer cleard first
     SAVE_GCODE_STATE NAME=STATE_PROBE_ACCURACY
-    {% if ena_mag_probe == 'true' %} 
-      ATTACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE_ACCURACY MOVE=1 MOVE_SPEED={t_speed}
+    {% if ena_mag_probe == 'true' %}
+        ATTACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE_ACCURACY MOVE=1 MOVE_SPEED={t_speed}
     {% endif %}
     PROBE_ACCURACY_BASE {get_params|join(" ")}
     {% if ena_mag_probe == 'true' and dock == 1 %}
-      DETACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE_ACCURACY MOVE=1 MOVE_SPEED={t_speed}
+        DETACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE_ACCURACY MOVE=1 MOVE_SPEED={t_speed}
     {% endif %}
     {% if absolute_coordinates == 'false' %} G91 {% endif %}
-  
-  [gcode_macro PROBE]
-  description: Probe Z-height at current XY position and dock/undock MagProbe
-  rename_existing: PROBE_BASE
-  gcode:
+
+[gcode_macro PROBE]
+description: Probe Z-height at current XY position and dock/undock MagProbe
+rename_existing: PROBE_BASE
+gcode:
     #####  get new parameter. #####
     {% set dock = params.DOCK|default(1)|int %} ; use DOCK=0 to omit the probe docking
     #####  get hardware enables  #####
@@ -809,33 +809,33 @@ samples_tolerance_retries: 3
     ##### get params and prepare to send them to the base macro #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% set get_params = get_params.append(key + "=" + params[key])  %}
+        {% set get_params = get_params.append(key + "=" + params[key])  %}
     {% endfor %}
     ##### end of definitions #####
     # as we need to return to the position with the probe we need to be at least at z_hop
     G90 ; absolute positioning
     {% if ena_mag_probe == 'true' and act_z < z_hop %}
-      {action_respond_info("PROBE: High must be above %.2f" % z_hop)}
-      G1 Z{z_hop} F900 ; move head up
+        {action_respond_info("PROBE: High must be above %.2f" % z_hop)}
+        G1 Z{z_hop} F900 ; move head up
     {% endif %}
     M400 ; get the buffer cleard first
     SAVE_GCODE_STATE NAME=STATE_PROBE
-    {% if ena_mag_probe == 'true' %} 
-      ATTACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE MOVE=1 MOVE_SPEED={t_speed}
+    {% if ena_mag_probe == 'true' %}
+        ATTACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE MOVE=1 MOVE_SPEED={t_speed}
     {% endif %}
     PROBE_BASE {get_params|join(" ")}
     G1 Z{z_min} F900 ; move head up to remove trigger
     {% if ena_mag_probe == 'true' and dock == 1 %}
-      DETACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE MOVE=1 MOVE_SPEED={t_speed}
+        DETACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE MOVE=1 MOVE_SPEED={t_speed}
     {% endif %}
     {% if absolute_coordinates == 'false' %} G91 {% endif %}
-  
-  [gcode_macro PROBE_CALIBRATE]
-  description: Calibrate the probe's z_offset and undock MagProbe
-  rename_existing: PROBE_CALIBRATE_BASE
-  gcode:
+
+[gcode_macro PROBE_CALIBRATE]
+description: Calibrate the probe's z_offset and undock MagProbe
+rename_existing: PROBE_CALIBRATE_BASE
+gcode:
     #####  get hardware enables  #####
     {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
     ##### get user defines  #####
@@ -847,48 +847,48 @@ samples_tolerance_retries: 3
     ##### get params and prepare to send them to the base macro #####
     {% set get_params = [] %}
     {% for key in params %}
-      {% set get_params = get_params.append(key + "=" + params[key])  %}
+        {% set get_params = get_params.append(key + "=" + params[key])  %}
     {% endfor %}
     ##### end of definitions #####
     # as we need to return to the position with the probe we need to be at least at z_hop
     G90 ; absolute positioning
     {% if ena_mag_probe == 'true' and act_z < z_hop %}
-      {action_respond_info("PROBE_CALIBRATE: High must be above %.2f" % z_hop)}
-      G1 Z{z_hop} F900 ; move head up
+        {action_respond_info("PROBE_CALIBRATE: High must be above %.2f" % z_hop)}
+        G1 Z{z_hop} F900 ; move head up
     {% endif %}
     M400 ; get the buffer cleard first
     SAVE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE
-    {% if ena_mag_probe == 'true' %} 
-      ATTACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
+    {% if ena_mag_probe == 'true' %}
+        ATTACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
     {% endif %}
     SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=caller VALUE='"calib"'
     SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=absolute_coordinates VALUE='"{absolute_coordinates}"'
     PROBE_CALIBRATE_BASE {get_params|join(" ")}
 
-  [gcode_macro PROBE_ABORT]
-  description: Abort manual Z probing tool for Probe and dock MagProbe
-  variable_caller: 'unknown'
-  variable_absolute_coordinates: False
-  gcode:
+    [gcode_macro PROBE_ABORT]
+    description: Abort manual Z probing tool for Probe and dock MagProbe
+    variable_caller: 'unknown'
+    variable_absolute_coordinates: False
+    gcode:
     #####  get hardware enables  #####
     {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
     ##### get user defines  #####
     {% set t_speed = printer['gcode_macro _USER_VARIABLE'].probe_travel_speed|float * 60 %}
     ##### end of definitions #####
     {% if ena_mag_probe == 'true' and caller|lower|string == 'calib' %}
-      ABORT
-      DETACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
-      {% if absolute_coordinates == 'false' %} G91 {% endif %}
-	SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=caller VALUE='"unknown"'
+        ABORT
+        DETACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
+        {% if absolute_coordinates == 'false' %} G91 {% endif %}
+    SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=caller VALUE='"unknown"'
     {% else %}
-      {action_respond_info("PROBE_ABORT: Executed while PROBE_CALIBRATE is not running")}
+        {action_respond_info("PROBE_ABORT: Executed while PROBE_CALIBRATE is not running")}
     {% endif %}
 
-  [gcode_macro PROBE_ACCEPT]
-  description: Accept the current Z position for Probe and dock MagProbe
-  gcode:
+    [gcode_macro PROBE_ACCEPT]
+    description: Accept the current Z position for Probe and dock MagProbe
+    gcode:
     #####  get variables from ABORT  #####
     {% set caller = printer['gcode_macro PROBE_ABORT'].caller %}
     {% set absolute_coordinates = printer['gcode_macro PROBE_ABORT'].absolute_coordinates %}
@@ -898,17 +898,17 @@ samples_tolerance_retries: 3
     {% set t_speed = printer['gcode_macro _USER_VARIABLE'].probe_travel_speed|float * 60 %}
     ##### end of definitions #####
     {% if ena_mag_probe == 'true' and caller|lower|string == 'calib' %}
-      ACCEPT
-      DETACH_PROBE
-      RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
-      {% if absolute_coordinates == 'false' %} G91 {% endif %}
-	SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=caller VALUE='"unknown"'
+        ACCEPT
+        DETACH_PROBE
+        RESTORE_GCODE_STATE NAME=STATE_PROBE_CALIBRATE MOVE=1 MOVE_SPEED={t_speed}
+        {% if absolute_coordinates == 'false' %} G91 {% endif %}
+    SET_GCODE_VARIABLE MACRO=PROBE_ABORT VARIABLE=caller VALUE='"unknown"'
     {% else %}
-      {action_respond_info("PROBE_ACCEPT: Executed while PROBE_CALIBRATE is not running")}
+        {action_respond_info("PROBE_ACCEPT: Executed while PROBE_CALIBRATE is not running")}
     {% endif %}
 #+END_SRC
 *** Z Calibration
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 #####################################################################
 # Z Calibration
 #####################################################################
@@ -1011,7 +1011,7 @@ gcode:
   {% endif %}
 #+END_SRC
 *** Probe Accuracy Testing
-##+BEGIN_SRC jinja2
+##+BEGIN_SRC conf
 [gcode_macro TEST_PROBE_ACCURACY]
 # Continuously run PROBE_ACCURACY while:
 #     - idling for START_IDLE_MINUTES
@@ -1175,81 +1175,81 @@ gcode:
 #+BEGIN_SRC conf
 [quad_gantry_level]
 gantry_corners:
-	-60,-10
-	360,370
+    -60,-10
+    360,370
 points:
-	50,25
-	50,225
-	250,225
-	250,25
-	
-speed: 200
-horizontal_move_z: 20
-retries: 20
-retry_tolerance: 0.0075
-max_adjust: 15
+    50,25
+    50,225
+    250,225
+    250,25
+
+speed:                  200
+horizontal_move_z:      20
+retries:                20
+retry_tolerance:        0.0075
+max_adjust:             15
 #+END_SRC
 
 *** Macro
 **** Quad Gantry Level
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro QUAD_GANTRY_LEVEL]
 description: Conform a moving, twistable gantry to the shape of a stationary bed
 rename_existing: QUAD_GANTRY_LEVEL_BASE
 gcode:
-  #####  get user defines  #####
-  {% set park_pos = printer['gcode_macro _USER_VARIABLE'].park_bed %}
-  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
-  #####  get hardware enables  #####
-  {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
-  ##### get toolhead position #####
-  {% set act_z = printer.toolhead.position.z|float %}
-  #####  set default  #####
-  {% set park = params.PARK|default('true') %}
-  #####  end of definitions  #####
-  SAVE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
-  _SET_Z_CURRENT VAL=HOME
-  {% if "xyz" not in printer.toolhead.homed_axes %}
+    #####  get user defines  #####
+    {% set park_pos = printer['gcode_macro _USER_VARIABLE'].park_bed %}
+    {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
+    #####  get hardware enables  #####
+    {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
+    ##### get toolhead position #####
+    {% set act_z = printer.toolhead.position.z|float %}
+    #####  set default  #####
+    {% set park = params.PARK|default('true') %}
+    #####  end of definitions  #####
+    SAVE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
+    _SET_Z_CURRENT VAL=HOME
+    {% if "xyz" not in printer.toolhead.homed_axes %}
     G28
-  {% endif %}
-  {% if ena_mag_probe == 'true' %}
-    {% if act_z < z_hop %}
-      G1 Z{z_hop} F900 ; move head up to insure Probe is not triggered in error case
     {% endif %}
-    ATTACH_PROBE 
-  {% endif %}
-  QUAD_GANTRY_LEVEL_BASE
-  {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
-  G28 Z
-  _SET_Z_CURRENT
-  {% if park|lower == 'true' %}
+    {% if ena_mag_probe == 'true' %}
+    {% if act_z < z_hop %}
+        G1 Z{z_hop} F900 ; move head up to insure Probe is not triggered in error case
+    {% endif %}
+    ATTACH_PROBE
+    {% endif %}
+    QUAD_GANTRY_LEVEL_BASE
+    {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
+    G28 Z
+    _SET_Z_CURRENT
+    {% if park|lower == 'true' %}
     G90
     G0 Z{park_pos[2]} F1800           ; move nozzle to z high first
     G0 X{park_pos[0]} Y{park_pos[1]} F18000 ; home to get toolhead in the middle
-  {% endif %}
-  RESTORE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
- #+END_SRC
+    {% endif %}
+    RESTORE_GCODE_STATE NAME=STATE_QUAD_GANTRY_LEVEL
+#+END_SRC
 **** Check QGL
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro CHECK_QGL]
 description: Run after QUAD_GANTRY_LEVEL to insure it passes
 gcode:
-  #####  Get user defines  #####
-  {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
-  #####  Get hardware enables  #####
-  {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
-  #####  end of definitions  #####
-  # check that after QGL and cancle print in case of failuare
-  {% if printer.quad_gantry_level.applied|lower == 'false' %}
+    #####  Get user defines  #####
+    {% set z_hop = printer['gcode_macro _USER_VARIABLE'].z_hop|float %}
+    #####  Get hardware enables  #####
+    {% set ena_mag_probe = printer['gcode_macro _USER_VARIABLE'].mag_probe|lower %}
+    #####  end of definitions  #####
+    # check that after QGL and cancle print in case of failuare
+    {% if printer.quad_gantry_level.applied|lower == 'false' %}
     {action_respond_info("QGL CHECK: Fail therefore cancel the print")}
     G90
     G0 Z{z_hop} F900           ; move nozzle to z high first
     {% if ena_mag_probe == 'true' %} DETACH_PROBE {% endif %}
     PAUSE_BASE
     UPDATE_DELAYED_GCODE ID=_EXECUTE_CANCEL_PRINT DURATION=1
-  {% else %}
+    {% else %}
     {action_respond_info("QGL CHECK: Pass")}
-  {% endif %}
+    {% endif %}
 #+END_SRC
 
 *** readme
@@ -1301,7 +1301,7 @@ gcode:
 #+END_SRC
 
 ** Conditional Homing
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro _CG28]
 description: Helper: Conditional homing
 gcode:
@@ -1311,7 +1311,7 @@ gcode:
 #+END_SRC
 
 ** Set Z Current
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro _SET_Z_CURRENT]
 description: Helper: Set Z-drive motor current
 variable_last_val: 'CONFIG'
@@ -1347,7 +1347,7 @@ gcode:
 #+END_SRC
 
 ** Set Acceleration
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro _SET_ACC]
 description: Helper: Set accel and accel_to_decel value
 variable_last_val: 'CONFIG'
@@ -1378,7 +1378,7 @@ gcode:
 mesh_min: 40,40
 mesh_max: 260,260
 speed: 1000
-horizontal_move_z: 7.5
+horizontal_move_z: 20
 probe_count: 9,9
 algorithm: bicubic
 relative_reference_index: 40
@@ -1389,7 +1389,7 @@ mesh_pps: 2,2
 
 ** Macros
 *** Bed Mesh Calibrate
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro BED_MESH_CALIBRATE]
 description: Perform QGL and bed mesh leveling
 rename_existing: BED_MESH_CALIBRATE_BASE
@@ -1414,7 +1414,7 @@ gcode:
 #+END_SRC
 
 *** BED Mesh Store
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro BED_MESH_STORE]
 description: Generate a mesh, name it and run save_config if requested
 variable_save_at_end: 'false' 
@@ -1457,7 +1457,7 @@ gcode:
 #+END_SRC
 
 *** Bed Mesh Load
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro BED_MESH_LOAD]
 description: Load an existing mesh or generate a new one
 gcode:
@@ -1490,7 +1490,7 @@ gcode:
 #+END_SRC
 
 *** Bed Mesh Save
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [delayed_gcode _BED_MESH_SAVE]
 gcode:
   {% if printer["gcode_macro MESH_STORE"].save_at_end == 'true'  %}
@@ -1556,7 +1556,7 @@ gcode_id: C
 
 *** Macros
 Set Chamber Fan Speed
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro M141]
 description: Set temperature of chamber fan
 gcode:
@@ -1566,7 +1566,7 @@ gcode:
 #+END_SRC
 
 Chamber Ventilation Control in Mainsail
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro VENT]
 description: Toggle Chamber fan
 gcode:
@@ -1625,7 +1625,7 @@ gcode:
 *** Macros
 Commented Out Right Now
 
-##+BEGIN_SRC jinja2
+##+BEGIN_SRC conf
 [gcode_macro _SET_FILTER]
 description: Helper: Set Nevermore filter speed
 gcode:
@@ -1682,7 +1682,7 @@ value:0
 
 Actual M106 Lock Macro
 Allows setting the fan speed and locking it from gcode changes
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro M106]
 description: set fan with manual override and lock option
 rename_existing: M106.1
@@ -1798,7 +1798,7 @@ COMMENTED_OUT
 #+END_SRC
 * Lights
 ** Case Light
-#+BEGIN_SRC conf
+##+BEGIN_SRC conf
 [output_pin caselight]
 pin: !rpi: gpio24
 pwm: false
@@ -1806,7 +1806,7 @@ shutdown_value: 0
 #+END_SRC
 
 *** Macros
-#+BEGIN_SRC jinja2
+##+BEGIN_SRC conf
 [gcode_macro _CASELIGHT_ON]
 description: Helper: Light on
 gcode:
@@ -1929,7 +1929,7 @@ shaper_type_y: zv
 #+END_SRC
 
 ** Macros
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 # !!! This macro only works with the use of gcode_shell_command.py !!!
 # you find both needed files at /klipper_config/script
 #  - gcode_shell_command.py -> klipper add on file
@@ -1989,7 +1989,7 @@ retract_speed: 70
 unretract_speed: 40
 #+END_SRC
 ** Load and Unload Macros
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro FILAMENT_LOAD]
 description: Load filament and disable rounout while running
 gcode:
@@ -2100,7 +2100,7 @@ gcode:
 
 #+END_SRC
 ** Nozzle Clean
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro NOZZLECLEAN]
 description: Move to bucket and scrub nozzle
 gcode:
@@ -2159,7 +2159,7 @@ gcode:
   G0 X{wipe_end_pos[0]} Y{wipe_end_pos[1]} Z{wipe_end_pos[2]} F4000
 #+END_SRC
 ** Priming
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro PRIME_LINE]
 description: Purge nozzle front left
 gcode:
@@ -2267,14 +2267,14 @@ gcode:
   RESTORE_GCODE_STATE NAME=STATE_FILAMENT_BALL
 #+END_SRC
 ** Filament Change
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro M600]
 description: Filament change
 gcode:
   PAUSE Y=10   ; everything needed is defined there
 #+END_SRC
 ** Runout Sensor
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 #[filament_switch_sensor runout]
 ##   When set to True, a PAUSE will execute immediately after a runout
 ##   is detected. Note that if pause_on_runout is False and the
@@ -2354,7 +2354,7 @@ gcode:
 * Other Macros
 ** Basic Macros
 Basic Macros, needed by other files.  Mostly for console output.
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 ##  Clear display output after Duration in seconds  
 ##  Use: UPDATE_DELAYED_GCODE ID=_CLEAR_DISPLAY DURATION=1
 [delayed_gcode _CLEAR_DISPLAY]
@@ -2486,6 +2486,7 @@ gcode:
     CALIBRATE_Z                                               ; Calibrate Z Height
     SET_GCODE_OFFSET Z_ADJUST={z_adjust} MOVE=1
     _PRINT_OFFSET
+    BED_MESH_PROFILE LOAD=default
     {% if prime_height > 0 %}
       PRIME_LINE PRIME_HEIGHT={p_height}
       #PRIME_BALL
@@ -2496,7 +2497,7 @@ gcode:
     G90                                                       ; use absolute coordinates
     ;M83                                                       ; use relative distances for extrusion
 #+END_SRC
-
+**** old print start
   ##+BEGIN_SRC conf
     [gcode_macro PRINT_START]
     description: All commands needed before the print
@@ -2859,7 +2860,6 @@ gcode:
   _SD_PRINT_STATS R='done'
   _SD_PRINTER_STATS
   {% if ena_neo == 'true' %} _LCD_KNOB COLOR=GREEN {% endif %}
-  {% if ena_caselight == 'true' %} _CASELIGHT_OFF {% endif %}
   {% if ena_chamber == 'fan' %} UPDATE_DELAYED_GCODE ID=_DELAY_VENT_OFF DURATION={vent_off} {% endif %}
   {% if ena_filter == 'true' %} UPDATE_DELAYED_GCODE ID=_DELAY_FILTER_OFF DURATION={fan_off} {% endif %}
   {% if 'temperature_sensor endstop' in printer.configfile.settings %}
@@ -3002,7 +3002,7 @@ gcode:
 #+END_SRC
 ** Web Client Macros (Pause, Resume, Cancel)
 
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [pause_resume]
 
 [display_status]
@@ -3232,7 +3232,7 @@ COMMENTED_OUT
 #   CANCEL_PRINT
 #+END_SRC
 ** Print Time Macros
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 #####################################################################
 # 	Macro
 #####################################################################
@@ -3431,7 +3431,7 @@ gcode:
     
 #+END_SRC
 ** Parking Macros
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro PARKFRONT]
 description: Park head front high
 gcode:
@@ -3520,7 +3520,7 @@ COMMENTED_OUT
 #     {%- endif -%}
 #+END_SRC
 ** Debug Macros
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 ## Use:
 ##   - DUMP_PARAMETERS
 ##   - DUMP_PARAMETERS S='gcode_macro _USER_VARIABLE'
@@ -3634,7 +3634,7 @@ WEBCLIENT NEXT
 enable_force_move: False
 #+END_SRC
 * Moonraker Power Control
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 
 [idle_timeout]
 gcode:
@@ -3792,7 +3792,7 @@ gcode:
 #+END_SRC
 * Config Check
 Checks that user vars are defined
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [delayed_gcode _CHECK_CONFIG]
 initial_duration: 0.1
 gcode:
@@ -3833,7 +3833,7 @@ gcode:
   {% endif %}
 #+END_SRC
 * User Variables
-#+BEGIN_SRC jinja2
+#+BEGIN_SRC conf
 [gcode_macro _USER_VARIABLE]
 description: Helper: Contains User defined printer variables
 ##### enables for additional hardware #####
@@ -3920,7 +3920,7 @@ gcode:
   {% set user_probe_delta_x = 30 %}            ; x offset for position before dock
   {% set user_probe_delta_y = -20 %}           ; y offset to move probe out of dock
   {% set user_probe_delta_z = 0 %}             ; z offset to move probe out of dock
-  {% set user_z_probe_hop = 7.5 %}             ; z minimum heigh to avoid crash 
+  {% set user_z_probe_hop = 20 %}             ; z minimum heigh to avoid crash
   {% set user_probe_travel_speed = 200 %}      ; dock moves travel speed
   {% set user_probe_dock_speed = 100 %}        ; dock speed for attach/dock
   ##### Park Position #####
