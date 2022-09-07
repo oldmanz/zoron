@@ -25,9 +25,11 @@ Section outlining tasks not related to configuration.
 
 ** Slicer Settings
 *** Cura
-    PRINT_START BED_TEMP={material_bed_temperature_layer_0} EXTRUDER_TEMP={material_print_temperature_layer_0} CHAMBER_TEMP={build_volume_temperature}  LAYER_HEIGHT=0.3
+    PRINT_START BED_TEMP={material_bed_temperature_layer_0} EXTRUDER_TEMP={material_print_temperature_layer_0} CHAMBER_TEMP={build_volume_temperature}  LAYER_HEIGHT=0.2
 
     PRINT_END
+    
+    Flow 94
     
 * Config Header
 #+BEGIN_SRC conf
